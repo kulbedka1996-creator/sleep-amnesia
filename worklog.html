@@ -350,6 +350,7 @@ a{color:inherit;text-decoration:none}
   if (bgm) {
     bgm.muted = true;
     bgm.volume = 0.5;
+    try { bgm.load(); } catch (e) {}
     var warmUp = bgm.play();
     if (warmUp && warmUp.then) warmUp.catch(function(){
       bgm.addEventListener('canplay', function onceWarm(){
@@ -369,16 +370,34 @@ a{color:inherit;text-decoration:none}
     }
     try { localStorage.setItem('sa-sound', soundOn ? '1' : '0'); } catch (e2) {}
   });
-  function firstUnmute(){
-    if (soundOn && bgm) {
-      bgm.muted = false;
-      var p = bgm.play();
-      if (p && p.then) p.catch(function(){});
-    }
+  var firstUnmuteAttached = true;
+  function detachFirstUnmute(){
+    if (!firstUnmuteAttached) return;
+    firstUnmuteAttached = false;
     removeEventListener('pointerdown', firstUnmute);
     removeEventListener('click', firstUnmute);
     removeEventListener('wheel', firstUnmute);
     removeEventListener('keydown', firstUnmute);
+  }
+  function firstUnmute(){
+    if (!soundOn || !bgm) { detachFirstUnmute(); return; }
+    bgm.muted = false;
+    var p = bgm.play();
+    if (p && p.then) {
+      p.then(function(){ if (!bgm.paused && !bgm.muted) detachFirstUnmute(); })
+       .catch(function(){
+         if (bgm.readyState < 3) {
+           bgm.addEventListener('canplay', function oncePlay(){
+             bgm.removeEventListener('canplay', oncePlay);
+             if (!soundOn || !bgm) { detachFirstUnmute(); return; }
+             bgm.muted = false;
+             var p2 = bgm.play();
+             if (p2 && p2.then) p2.then(detachFirstUnmute).catch(function(){});
+             else detachFirstUnmute();
+           });
+         }
+       });
+    } else detachFirstUnmute();
   }
   addEventListener('pointerdown', firstUnmute);
   addEventListener('click', firstUnmute);

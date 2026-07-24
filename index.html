@@ -1049,8 +1049,16 @@ body.hero-dissolve-active .hero-dissolve-line{
   }
 
   function updatePoem(){
-    var visible = heroPhase === 'video2' || heroPhase === 'poemPause';
-    var progress = heroPhase === 'poemPause' ? 1 : (heroPhase === 'video2' ? phaseProgress : 0);
+    var phase = heroPhase;
+    /* reveal: 0 в video1, растёт в video2, 1 в poemPause и далее.
+       dissolve: 0 до video3, растёт в video3, 1 в finalText — текст растворяется. */
+    var revealP = (phase === 'video2') ? phaseProgress
+                : (phase === 'poemPause' || phase === 'video3' || phase === 'finalText') ? 1
+                : 0;
+    var dissolveP = (phase === 'video3') ? phaseProgress
+                  : (phase === 'finalText') ? 1
+                  : 0;
+    var visible = revealP > 0 && dissolveP < 1;
 
     if (heroPoem) heroPoem.style.opacity = visible ? '1' : '0';
     if (heroPoemLayer) heroPoemLayer.setAttribute('aria-hidden', visible ? 'false' : 'true');
@@ -1058,10 +1066,16 @@ body.hero-dissolve-active .hero-dissolve-line{
     for (var i = 0; i < poemLines.length; i++) {
       var start = 0.12 + i * 0.24;
       var end = start + 0.18;
-      var reveal = visible ? easeOut(lineProgress(progress, start, end)) : 0;
-      poemLines[i].style.opacity = reveal.toFixed(3);
-      poemLines[i].style.filter = 'blur(' + ((1 - reveal) * 8).toFixed(1) + 'px)';
-      poemLines[i].style.transform = 'translateY(' + ((1 - reveal) * 5).toFixed(1) + 'px)';
+      var reveal = easeOut(lineProgress(revealP, start, end));
+      /* растворение строк со сдвигом по времени — верхние растворяются первыми */
+      var dStart = i * 0.18;
+      var dEnd = dStart + 0.34;
+      var dissolve = easeOut(lineProgress(dissolveP, dStart, dEnd));
+      var shown = reveal * (1 - dissolve);
+      poemLines[i].style.opacity = shown.toFixed(3);
+      /* скрыт → blur 8; проявлен → 0; растворяется → blur до 22 и всплывает вверх */
+      poemLines[i].style.filter = 'blur(' + ((1 - reveal) * 8 + dissolve * 22).toFixed(1) + 'px)';
+      poemLines[i].style.transform = 'translateY(' + ((1 - reveal) * 5 - dissolve * 10).toFixed(1) + 'px)';
     }
   }
 
@@ -1204,6 +1218,7 @@ body.hero-dissolve-active .hero-dissolve-line{
   if (bgm) {
     bgm.muted = true;
     bgm.volume = 0.5;
+    try { bgm.load(); } catch (e) {}
     var warmUp = bgm.play();
     if (warmUp && warmUp.then) warmUp.catch(function(){
       /* если и muted-autoplay не заиграл — повторим на canplay */
@@ -1225,18 +1240,42 @@ body.hero-dissolve-active .hero-dissolve-line{
     }
     try { localStorage.setItem('sa-sound', soundOn ? '1' : '0'); } catch (e2) {}
   });
-  // первый жест (scroll/click/key/touch) — снимаем mute, если звук включён
-  function firstUnmute(){
-    if (soundOn && bgm) {
-      bgm.muted = false;
-      var p = bgm.play();
-      if (p && p.then) p.catch(function(){});
-    }
+  // первый жест (scroll/click/key/touch) — снимаем mute, если звук включён.
+  // Не снимаем слушатель, пока трек реально не зазвучал — аудио может быть ещё не буферизовано.
+  var firstUnmuteAttached = true;
+  function detachFirstUnmute(){
+    if (!firstUnmuteAttached) return;
+    firstUnmuteAttached = false;
     removeEventListener('pointerdown', firstUnmute);
     removeEventListener('click', firstUnmute);
     removeEventListener('wheel', firstUnmute);
     removeEventListener('touchmove', firstUnmute);
     removeEventListener('keydown', firstUnmute);
+  }
+  function firstUnmute(){
+    if (!soundOn || !bgm) { detachFirstUnmute(); return; }
+    bgm.muted = false;
+    var p = bgm.play();
+    if (p && p.then) {
+      p.then(function(){
+        if (!bgm.paused && !bgm.muted) detachFirstUnmute();
+      }).catch(function(){
+        /* аудио ещё не готово — дождёмся canplay и сыграем со звуком */
+        if (bgm.readyState < 3) {
+          bgm.addEventListener('canplay', function oncePlay(){
+            bgm.removeEventListener('canplay', oncePlay);
+            if (!soundOn || !bgm) { detachFirstUnmute(); return; }
+            bgm.muted = false;
+            var p2 = bgm.play();
+            if (p2 && p2.then) p2.then(detachFirstUnmute).catch(function(){});
+            else detachFirstUnmute();
+          });
+        }
+        /* если hard-blocked — не сдаёмся, следующий жест попробует снова */
+      });
+    } else {
+      detachFirstUnmute();
+    }
   }
   addEventListener('pointerdown', firstUnmute);
   addEventListener('click', firstUnmute);
