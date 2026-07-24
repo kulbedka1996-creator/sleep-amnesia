@@ -388,7 +388,7 @@ body.hero-dissolve-active .hero-dissolve-line{
           mask:radial-gradient(60% 60% at 50% 50%, #000 0%, #000 38%, rgba(0,0,0,.5) 60%, rgba(0,0,0,0) 78%)}
 .lab-vis-img.on{opacity:1; filter:blur(0)}
 .lab-title{font-family:var(--mono); font-weight:400; font-size:clamp(26px,3.4vw,44px); line-height:1.12; letter-spacing:-.03em; margin:0; color:var(--ink); white-space:pre-line; text-transform:uppercase}
-.lab-title.is-intro{font-family:var(--display); font-size:clamp(46px,9vw,120px); letter-spacing:-.03em; line-height:.9; text-transform:uppercase}
+.lab-title.is-intro{font-family:var(--display); font-size:clamp(46px,9vw,120px); letter-spacing:-.03em; line-height:.9; text-transform:none}
 .lab-sub{font-family:var(--mono); font-size:clamp(14px,1.3vw,17px); line-height:1.4; letter-spacing:-.02em; color:var(--ink); margin:22px 0 30px; white-space:pre-line}
 .lab-field{margin-bottom:22px}
 .lab-textarea, .lab-text{width:100%; font-family:var(--mono); font-size:15px; letter-spacing:-.02em; color:var(--ink); padding:16px 18px; border:1px solid rgba(30,30,28,.32); background:transparent; border-radius:10px; outline:none; resize:none}
@@ -726,6 +726,9 @@ body.hero-dissolve-active .hero-dissolve-line{
   var lastScrollY = -1;
   var heroActive = true;
   var heroAnchorY = 0;
+  var heroLockY = 0;
+  var heroBottomY = 0;
+  var suppressReengageUntil = 0;
   var heroPhase = 'video1';
   var phaseProgress = 0;
 
@@ -766,8 +769,8 @@ body.hero-dissolve-active .hero-dissolve-line{
 
   function keepHeroViewportFixed(){
     if (!heroActive) return;
-    if (Math.abs(window.scrollY - heroAnchorY) > 1) {
-      window.scrollTo(0, heroAnchorY);
+    if (Math.abs(window.scrollY - heroLockY) > 1) {
+      window.scrollTo(0, heroLockY);
     }
   }
 
@@ -838,15 +841,19 @@ body.hero-dissolve-active .hero-dissolve-line{
     heroActive = false;
     var heroTop = getHeroTop();
     var total = Math.max(0, heroScroll.offsetHeight - innerHeight);
-    window.scrollTo(0, Math.max(heroTop, heroTop + total - 2));
+    heroBottomY = Math.max(heroTop, heroTop + total - 2);
+    window.scrollTo(0, heroBottomY);
+    lastScrollY = heroBottomY;
   }
-
-  function resetHeroSequence(){
-    if (finalReleaseTimer) {
-      clearTimeout(finalReleaseTimer);
-      finalReleaseTimer = 0;
-    }
-
+  function releaseHeroReverse(){
+    if (!heroActive) return;
+    heroActive = false;
+    heroAnchorY = getHeroTop();
+    window.scrollTo(0, heroAnchorY);
+    lastScrollY = heroAnchorY;
+  }
+  function engageForward(){
+    if (finalReleaseTimer) { clearTimeout(finalReleaseTimer); finalReleaseTimer = 0; }
     heroActive = true;
     heroPhase = 'video1';
     phaseProgress = 0;
@@ -854,10 +861,33 @@ body.hero-dissolve-active .hero-dissolve-line{
     titleDissolveProgress = 0;
     poemPauseGestures = 0;
     wheelGestureOpen = false;
-
     heroAnchorY = getHeroTop();
-    window.scrollTo(0, heroAnchorY);
+    heroLockY = heroAnchorY;
+    window.scrollTo(0, heroLockY);
+    lastScrollY = heroLockY;
     renderHeroState();
+  }
+  function engageReverse(){
+    if (finalReleaseTimer) { clearTimeout(finalReleaseTimer); finalReleaseTimer = 0; }
+    heroActive = true;
+    heroPhase = 'finalText';
+    phaseProgress = 1;
+    titleDissolveStarted = true;
+    titleDissolveProgress = 1;
+    poemPauseGestures = 1;
+    wheelGestureOpen = false;
+    var heroTop = getHeroTop();
+    heroAnchorY = heroTop;
+    var total = Math.max(0, heroScroll.offsetHeight - innerHeight);
+    heroBottomY = Math.max(heroTop, heroTop + total - 2);
+    heroLockY = heroBottomY;
+    window.scrollTo(0, heroLockY);
+    lastScrollY = heroLockY;
+    renderHeroState();
+  }
+
+  function resetHeroSequence(){
+    engageForward();
   }
 
   function skipHeroSequence(){
@@ -866,6 +896,7 @@ body.hero-dissolve-active .hero-dissolve-line{
       finalReleaseTimer = 0;
     }
     heroActive = false;
+    suppressReengageUntil = Date.now() + 1200;
   }
 
   function movePhaseBackward(){
@@ -908,6 +939,10 @@ body.hero-dissolve-active .hero-dissolve-line{
         titleDissolveStarted = true;
         titleDissolveProgress = 1;
         setPhase('video2', 0);
+        return;
+      }
+      if (!forward && phaseProgress <= 0 && titleDissolveProgress <= 0) {
+        releaseHeroReverse();
         return;
       }
     }
@@ -1037,7 +1072,24 @@ body.hero-dissolve-active .hero-dissolve-line{
   }
 
   addEventListener('wheel', function(event){
-    if (!heroActive) return;
+    if (!heroActive) {
+      if (Date.now() < suppressReengageUntil) return;
+      var ht = getHeroTop();
+      var tot = Math.max(0, heroScroll.offsetHeight - innerHeight);
+      var hb = Math.max(ht, ht + tot - 2);
+      var ys = window.scrollY;
+      if (event.deltaY < 0 && ys <= hb && ys >= ht) {
+        engageReverse();
+        event.preventDefault();
+        return;
+      }
+      if (event.deltaY > 0 && ys >= ht && ys <= hb) {
+        engageForward();
+        event.preventDefault();
+        return;
+      }
+      return;
+    }
     event.preventDefault();
 
     var delta = normalizeWheelDelta(event);
@@ -1144,16 +1196,29 @@ body.hero-dissolve-active .hero-dissolve-line{
   }
 
   heroAnchorY = getHeroTop();
+  heroLockY = heroAnchorY;
   window.scrollTo(0, heroAnchorY);
+  lastScrollY = heroAnchorY;
   renderHeroState();
 
   function tick(){
     keepHeroViewportFixed();
     var y = window.scrollY;
     if (y !== lastScrollY) {
+      var scrollingUp = y < lastScrollY;
       lastScrollY = y;
       var scrolled = (y + innerHeight * 0.5) > archiveTop;
       document.body.classList.toggle('scrolled', scrolled);
+      if (!heroActive && Date.now() > suppressReengageUntil) {
+        var ht = getHeroTop();
+        var tot = Math.max(0, heroScroll.offsetHeight - innerHeight);
+        var hb = Math.max(ht, ht + tot - 2);
+        if (scrollingUp && y <= hb && y >= ht) {
+          engageReverse();
+        } else if (!scrollingUp && y >= ht && y <= hb) {
+          engageForward();
+        }
+      }
     }
 
     renderHeroState();
@@ -1405,7 +1470,7 @@ body.hero-dissolve-active .hero-dissolve-line{
       visActive = (visActive==='a') ? 'b' : 'a';
     }
     var STEPS=[
-      {i:'', t:'laboratory', s:'Ритуал восстановления сна.\nОтветьте на несколько вопросов — и система соберёт архивную карточку из ваших фрагментов.',
+      {i:'', t:'Laboratory', s:'Ритуал восстановления сна.\nОтветьте на несколько вопросов — и система соберёт архивную карточку из ваших фрагментов.',
         body:'<div class="lab-actions">'+nextBtn('начать восстановление')+'</div>',
         f:'', vis:1, back:false, isIntro:true},
       {i:'01 / 06', t:'Что осталось\nпосле пробуждения?', s:'Опишите первый образ, который\nудержался в памяти.',
