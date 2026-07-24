@@ -345,20 +345,28 @@ a{color:inherit;text-decoration:none}
       soundBtn.classList.toggle('is-on', soundOn);
       soundBtn.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
     }
-    if (!bgm) return;
-    if (soundOn) { bgm.muted = false; var p = bgm.play(); if (p && p.then) p.catch(function(){}); }
-    else { bgm.muted = true; }
   }
-  /* Muted-autoplay разрешён всегда — запускаем молча сразу, на первом жесте только снимаем mute. */
+  /* Muted-autoplay — всегда молча, unmute на жесте. */
   if (bgm) {
-    bgm.muted = !soundOn;
+    bgm.muted = true;
     bgm.volume = 0.5;
     var warmUp = bgm.play();
-    if (warmUp && warmUp.then) warmUp.catch(function(){});
+    if (warmUp && warmUp.then) warmUp.catch(function(){
+      bgm.addEventListener('canplay', function onceWarm(){
+        bgm.removeEventListener('canplay', onceWarm);
+        bgm.muted = true;
+        var p2 = bgm.play(); if (p2 && p2.then) p2.catch(function(){});
+      });
+    });
   }
   applySound();
   if (soundBtn) soundBtn.addEventListener('click', function(){
-    soundOn = !soundOn; applySound();
+    soundOn = !soundOn;
+    applySound();
+    if (bgm) {
+      bgm.muted = !soundOn;
+      if (soundOn) { var p = bgm.play(); if (p && p.then) p.catch(function(){}); }
+    }
     try { localStorage.setItem('sa-sound', soundOn ? '1' : '0'); } catch (e2) {}
   });
   function firstUnmute(){
@@ -368,10 +376,12 @@ a{color:inherit;text-decoration:none}
       if (p && p.then) p.catch(function(){});
     }
     removeEventListener('pointerdown', firstUnmute);
+    removeEventListener('click', firstUnmute);
     removeEventListener('wheel', firstUnmute);
     removeEventListener('keydown', firstUnmute);
   }
   addEventListener('pointerdown', firstUnmute);
+  addEventListener('click', firstUnmute);
   addEventListener('wheel', firstUnmute, { passive: true });
   addEventListener('keydown', firstUnmute);
 

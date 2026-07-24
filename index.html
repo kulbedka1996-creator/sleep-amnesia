@@ -603,15 +603,40 @@ body.hero-dissolve-active .hero-dissolve-line{
   window.scrollTo(0, 0);
   addEventListener('pageshow', function(){ window.scrollTo(0, 0); });
 
-  /* ---------- intro-loader ---------- */
+  /* ---------- intro-loader: держится до полной загрузки ---------- */
   var loaderEl = document.getElementById('loader');
   if (loaderEl) {
     if (reduce) { loaderEl.classList.add('done'); }
     else {
       requestAnimationFrame(function(){ loaderEl.classList.add('fill'); });
-      var hideLoader = function(){ setTimeout(function(){ loaderEl.classList.add('done'); }, 1150); };
-      if (document.readyState === 'complete') hideLoader(); else addEventListener('load', hideLoader);
-      setTimeout(function(){ loaderEl.classList.add('done'); }, 3200); // failsafe
+      var MIN_SHOW_MS = 1400;
+      var startTs = Date.now();
+      var pageLoaded = false;
+      var videosReady = false;
+      var minElapsed = false;
+      function tryHide(){
+        if (pageLoaded && videosReady && minElapsed) {
+          loaderEl.classList.add('done');
+        }
+      }
+      /* 1) минимальное время показа лоадера */
+      setTimeout(function(){ minElapsed = true; tryHide(); }, MIN_SHOW_MS);
+      /* 2) window.load — все изображения/CSS/JS загружены */
+      function onPageLoad(){ pageLoaded = true; tryHide(); }
+      if (document.readyState === 'complete') onPageLoad();
+      else addEventListener('load', onPageLoad);
+      /* 3) все видео готовы (loadeddata + enough buffer) */
+      var vids = Array.prototype.slice.call(document.querySelectorAll('.hero-video')).filter(Boolean);
+      var vidsDone = 0;
+      function vidDone(){ vidsDone++; if (vidsDone >= vids.length) { videosReady = true; tryHide(); } }
+      if (!vids.length) { videosReady = true; tryHide(); }
+      vids.forEach(function(v){
+        if (v.readyState >= 2) { vidDone(); return; }
+        v.addEventListener('loadeddata', vidDone, { once: true });
+        v.addEventListener('error', vidDone, { once: true });
+      });
+      /* failsafe — если что-то застряло, не держим вечно */
+      setTimeout(function(){ loaderEl.classList.add('done'); }, 15000);
     }
   }
 
@@ -1166,36 +1191,41 @@ body.hero-dissolve-active .hero-dissolve-line{
   try { var _s = localStorage.getItem('sa-sound'); if (_s !== null) soundOn = _s === '1'; } catch (e) {}
   function soundBtns(){ return document.querySelectorAll('#sound, .lab-sound'); }
   function applySound(){
+    /* только UI кнопки — не трогаем muted/play здесь, чтобы не ломать muted-autoplay */
     soundBtns().forEach(function(b){
       b.textContent = 'sound: ' + (soundOn ? 'on' : 'off');
       b.classList.toggle('is-on', soundOn);
       b.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
     });
-    if (!bgm) return;
-    if (soundOn) {
-      /* unmute уже играющего трека; если ещё не играется — запускаем */
-      bgm.muted = false;
-      var p = bgm.play();
-      if (p && p.then) p.catch(function(){});
-    } else {
-      bgm.muted = true;
-    }
   }
-  /* Muted-autoplay разрешён всегда — запускаем трек молча сразу, чтобы на первом жесте
-     осталось только снять mute (это работает в любом браузере, включая строгий Chrome). */
+  /* Muted-autoplay разрешён всегда — запускаем трек ВСЕГДА молча,
+     а на первом жесте снимаем mute (если звук включён).
+     Не пытаемся играть со звуком до жеста — Chrome это блокирует. */
   if (bgm) {
-    bgm.muted = !soundOn;
+    bgm.muted = true;
     bgm.volume = 0.5;
     var warmUp = bgm.play();
-    if (warmUp && warmUp.then) warmUp.catch(function(){});
+    if (warmUp && warmUp.then) warmUp.catch(function(){
+      /* если и muted-autoplay не заиграл — повторим на canplay */
+      bgm.addEventListener('canplay', function onceWarm(){
+        bgm.removeEventListener('canplay', onceWarm);
+        bgm.muted = true;
+        var p2 = bgm.play(); if (p2 && p2.then) p2.catch(function(){});
+      });
+    });
   }
   applySound();
   document.addEventListener('click', function(e){
     var b = e.target.closest('#sound, .lab-sound'); if (!b) return;
-    soundOn = !soundOn; applySound();
+    soundOn = !soundOn;
+    applySound();
+    if (bgm) {
+      bgm.muted = !soundOn;
+      if (soundOn) { var p = bgm.play(); if (p && p.then) p.catch(function(){}); }
+    }
     try { localStorage.setItem('sa-sound', soundOn ? '1' : '0'); } catch (e2) {}
   });
-  // первый жест (scroll/click/key) — снимаем mute, если звук включён
+  // первый жест (scroll/click/key/touch) — снимаем mute, если звук включён
   function firstUnmute(){
     if (soundOn && bgm) {
       bgm.muted = false;
@@ -1203,11 +1233,13 @@ body.hero-dissolve-active .hero-dissolve-line{
       if (p && p.then) p.catch(function(){});
     }
     removeEventListener('pointerdown', firstUnmute);
+    removeEventListener('click', firstUnmute);
     removeEventListener('wheel', firstUnmute);
     removeEventListener('touchmove', firstUnmute);
     removeEventListener('keydown', firstUnmute);
   }
   addEventListener('pointerdown', firstUnmute);
+  addEventListener('click', firstUnmute);
   addEventListener('wheel', firstUnmute, { passive: true });
   addEventListener('touchmove', firstUnmute, { passive: true });
   addEventListener('keydown', firstUnmute);
