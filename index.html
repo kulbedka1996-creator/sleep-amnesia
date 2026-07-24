@@ -1172,7 +1172,22 @@ body.hero-dissolve-active .hero-dissolve-line{
       b.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
     });
     if (!bgm) return;
-    if (soundOn) { bgm.play().catch(function(){}); } else { bgm.pause(); }
+    if (soundOn) {
+      /* unmute уже играющего трека; если ещё не играется — запускаем */
+      bgm.muted = false;
+      var p = bgm.play();
+      if (p && p.then) p.catch(function(){});
+    } else {
+      bgm.muted = true;
+    }
+  }
+  /* Muted-autoplay разрешён всегда — запускаем трек молча сразу, чтобы на первом жесте
+     осталось только снять mute (это работает в любом браузере, включая строгий Chrome). */
+  if (bgm) {
+    bgm.muted = !soundOn;
+    bgm.volume = 0.5;
+    var warmUp = bgm.play();
+    if (warmUp && warmUp.then) warmUp.catch(function(){});
   }
   applySound();
   document.addEventListener('click', function(e){
@@ -1180,43 +1195,22 @@ body.hero-dissolve-active .hero-dissolve-line{
     soundOn = !soundOn; applySound();
     try { localStorage.setItem('sa-sound', soundOn ? '1' : '0'); } catch (e2) {}
   });
-  // браузеры блокируют звук до жеста — стартуем при первом взаимодействии
-  var firstPlayAttached = true;
-  function detachFirstPlay(){
-    if (!firstPlayAttached) return;
-    firstPlayAttached = false;
-    removeEventListener('pointerdown', firstPlay);
-    removeEventListener('wheel', firstPlay);
-    removeEventListener('touchmove', firstPlay);
-    removeEventListener('keydown', firstPlay);
-  }
-  function firstPlay(){
-    if (!soundOn || !bgm) { detachFirstPlay(); return; }
-    var p = bgm.play();
-    if (p && typeof p.then === 'function') {
-      p.then(function(){
-        if (!bgm.paused) detachFirstPlay();
-      }).catch(function(){
-        // аудио ещё не готово — повторим, когда сможет играть
-        if (bgm.readyState < 2) {
-          bgm.addEventListener('canplay', function oncePlay(){
-            bgm.removeEventListener('canplay', oncePlay);
-            if (soundOn) bgm.play().catch(function(){}).finally(detachFirstPlay);
-            else detachFirstPlay();
-          });
-        } else {
-          // жёстко заблокировано — оставим кнопку, пользователь сам включит
-          detachFirstPlay();
-        }
-      });
-    } else {
-      detachFirstPlay();
+  // первый жест (scroll/click/key) — снимаем mute, если звук включён
+  function firstUnmute(){
+    if (soundOn && bgm) {
+      bgm.muted = false;
+      var p = bgm.play();
+      if (p && p.then) p.catch(function(){});
     }
+    removeEventListener('pointerdown', firstUnmute);
+    removeEventListener('wheel', firstUnmute);
+    removeEventListener('touchmove', firstUnmute);
+    removeEventListener('keydown', firstUnmute);
   }
-  addEventListener('pointerdown', firstPlay);
-  addEventListener('wheel', firstPlay, { passive: true });
-  addEventListener('touchmove', firstPlay, { passive: true });
-  addEventListener('keydown', firstPlay);
+  addEventListener('pointerdown', firstUnmute);
+  addEventListener('wheel', firstUnmute, { passive: true });
+  addEventListener('touchmove', firstUnmute, { passive: true });
+  addEventListener('keydown', firstUnmute);
 
   /* ---------- rAF loop ---------- */
   var archiveTop = 0;

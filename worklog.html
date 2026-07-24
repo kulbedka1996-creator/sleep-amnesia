@@ -346,40 +346,34 @@ a{color:inherit;text-decoration:none}
       soundBtn.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
     }
     if (!bgm) return;
-    if (soundOn) { bgm.play().catch(function(){}); } else { bgm.pause(); }
+    if (soundOn) { bgm.muted = false; var p = bgm.play(); if (p && p.then) p.catch(function(){}); }
+    else { bgm.muted = true; }
+  }
+  /* Muted-autoplay разрешён всегда — запускаем молча сразу, на первом жесте только снимаем mute. */
+  if (bgm) {
+    bgm.muted = !soundOn;
+    bgm.volume = 0.5;
+    var warmUp = bgm.play();
+    if (warmUp && warmUp.then) warmUp.catch(function(){});
   }
   applySound();
   if (soundBtn) soundBtn.addEventListener('click', function(){
     soundOn = !soundOn; applySound();
     try { localStorage.setItem('sa-sound', soundOn ? '1' : '0'); } catch (e2) {}
   });
-  var firstPlayAttached = true;
-  function detachFirstPlay(){
-    if (!firstPlayAttached) return;
-    firstPlayAttached = false;
-    removeEventListener('pointerdown', firstPlay);
-    removeEventListener('wheel', firstPlay);
-    removeEventListener('keydown', firstPlay);
+  function firstUnmute(){
+    if (soundOn && bgm) {
+      bgm.muted = false;
+      var p = bgm.play();
+      if (p && p.then) p.catch(function(){});
+    }
+    removeEventListener('pointerdown', firstUnmute);
+    removeEventListener('wheel', firstUnmute);
+    removeEventListener('keydown', firstUnmute);
   }
-  function firstPlay(){
-    if (!soundOn || !bgm) { detachFirstPlay(); return; }
-    var p = bgm.play();
-    if (p && typeof p.then === 'function') {
-      p.then(function(){ if (!bgm.paused) detachFirstPlay(); })
-       .catch(function(){
-         if (bgm.readyState < 2) {
-           bgm.addEventListener('canplay', function oncePlay(){
-             bgm.removeEventListener('canplay', oncePlay);
-             if (soundOn) bgm.play().catch(function(){}).finally(detachFirstPlay);
-             else detachFirstPlay();
-           });
-         } else detachFirstPlay();
-       });
-    } else detachFirstPlay();
-  }
-  addEventListener('pointerdown', firstPlay);
-  addEventListener('wheel', firstPlay, { passive: true });
-  addEventListener('keydown', firstPlay);
+  addEventListener('pointerdown', firstUnmute);
+  addEventListener('wheel', firstUnmute, { passive: true });
+  addEventListener('keydown', firstUnmute);
 
   /* ---------- кнопка копирования промтов ---------- */
   function getPromptText(node){
