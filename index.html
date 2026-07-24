@@ -1,0 +1,1508 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sleep Amnesia — Архив потерянных сновидений</title>
+<meta name="description" content="Sleep Amnesia — архив потерянных сновидений. Сны исчезают быстрее, чем мы успеваем их запомнить." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Monomaniac+One&family=PT+Mono&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='%232A2A28'%3E%3Cellipse cx='10' cy='11' rx='7' ry='6'/%3E%3Cellipse cx='22' cy='11' rx='7' ry='6'/%3E%3Cellipse cx='10' cy='21' rx='6' ry='7'/%3E%3Cellipse cx='22' cy='21' rx='6' ry='7'/%3E%3Crect x='15.3' y='6' width='1.4' height='20'/%3E%3C/g%3E%3C/svg%3E">
+<meta property="og:title" content="Sleep Amnesia — Архив потерянных сновидений">
+<meta property="og:description" content="Интерактивный архив, который помогает сохранить и восстановить исчезающие фрагменты снов.">
+<meta property="og:type" content="website">
+
+<style>
+/* ==========================================================
+   Sleep Amnesia — HERO v3.1
+   Типографика: Monomaniac One 220/-3%/20 · PT Mono 32 и 20/-2%/60
+   Sticky hero, scroll-scrub видео бабочки, жидкое искажение от курсора,
+   цветная аура recall, звук, failsafe-проявление.
+   ========================================================== */
+:root{
+  --bg:#E9E8E5;
+  --ink:#2A2A28;
+  --muted:#6E6E69;
+  --faint:#9A9A93;
+  --glow:#5B8FD4;
+  --mono:"PT Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --display:"Monomaniac One","PT Mono",system-ui,sans-serif;
+  --gutter:clamp(20px,4vw,54px);
+  --scroll-p:0;
+  --mx:50%;
+  --my:50%;
+  --line:rgba(30,30,28,.16);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--mono); font-weight:400; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+video{display:block;max-width:none}
+::selection{background:rgba(40,40,38,.12)}
+:focus-visible{outline:2px solid var(--ink); outline-offset:3px; border-radius:2px}
+
+/* intro-loader */
+.loader{position:fixed; inset:0; z-index:200; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; transition:opacity .8s ease, visibility .8s}
+.loader.done{opacity:0; visibility:hidden}
+.loader__mark{font-family:var(--mono); font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.loader__bar{width:180px; height:1px; background:rgba(30,30,28,.15); overflow:hidden}
+.loader__bar span{display:block; width:100%; height:100%; background:var(--ink); transform:scaleX(0); transform-origin:left; transition:transform 1.1s cubic-bezier(.4,0,.1,1)}
+.loader.fill .loader__bar span{transform:scaleX(1)}
+
+/* ---- зерно ---- */
+.grain{position:fixed; inset:0; z-index:60; pointer-events:none; opacity:.08; mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ---- топбар ---- */
+.topbar{position:fixed; top:0; left:0; right:0; z-index:50; display:flex; align-items:center; justify-content:space-between;
+  padding:26px var(--gutter); font-family:var(--mono); font-size:20px; letter-spacing:-.02em; color:var(--ink);
+  -webkit-backdrop-filter:blur(0) saturate(1); backdrop-filter:blur(0) saturate(1);
+  background:rgba(233,232,229,0);
+  transition:background .6s ease, -webkit-backdrop-filter .6s ease, backdrop-filter .6s ease}
+body.scrolled .topbar{
+  -webkit-backdrop-filter:blur(12px) saturate(1.2); backdrop-filter:blur(12px) saturate(1.2);
+  background:rgba(233,232,229,.62)
+}
+.topbar nav{display:flex; gap:clamp(22px,4vw,60px); position:absolute; left:50%; transform:translateX(-50%)}
+.topbar nav a{position:relative; opacity:.85; transition:opacity .3s}
+.topbar nav a:hover{opacity:1}
+.topbar nav a::after{content:""; position:absolute; left:0; right:100%; bottom:-5px; height:1px; background:var(--ink); transition:right .35s ease}
+.topbar nav a:hover::after{right:0}
+.topbar .brand{opacity:0}
+.topbar .sound{
+  opacity:.85; background:none; border:none; font:inherit; color:inherit;
+  letter-spacing:-.02em; cursor:pointer; padding:0; transition:opacity .3s
+}
+.topbar .sound:hover{opacity:1}
+.topbar .sound.is-on{opacity:1}
+@media (max-width:640px){ .topbar nav{gap:16px} }
+
+/* ---- HERO ---- */
+.hero-scroll{position:relative; height:800vh}
+.hero-stage{position:sticky; top:0; height:100svh; overflow:hidden; isolation:isolate}
+
+/* цветная аура recall — вне жидкости, не искажается */
+.cursor-aura{
+  position:absolute; inset:0; z-index:4; pointer-events:none;
+  opacity:calc(0.42 - var(--scroll-p) * 0.28);
+  background:radial-gradient(
+    circle  clamp(120px,22vw,320px) at var(--mx) var(--my),
+    rgba(91,143,212,.22) 0%,
+    rgba(220,180,200,.12) 38%,
+    transparent 72%
+  );
+  mix-blend-mode:multiply;
+  transition:opacity .4s ease;
+}
+body.no-pointer .cursor-aura{
+  background:radial-gradient(
+    circle clamp(140px,30vw,360px) at 50% 42%,
+    rgba(91,143,212,.18) 0%,
+    rgba(220,180,200,.1) 40%,
+    transparent 72%
+  );
+}
+
+.liquid{position:absolute; inset:0; display:flex; align-items:center; justify-content:center}
+
+/* ---- вязкий след-рефракция за курсором ---- */
+.trail{position:fixed; inset:0; z-index:45; pointer-events:none; overflow:hidden; opacity:0; transition:opacity .5s ease}
+body.pointer-on .trail{opacity:1}
+body.ui-hover .trail{opacity:0}
+.trail .tb{
+  position:absolute; top:0; left:0; border-radius:50%; transform:translate(-50%,-50%);
+  -webkit-backdrop-filter:blur(4px) saturate(1.2) brightness(1.03);
+  backdrop-filter:blur(4px) saturate(1.2) brightness(1.03);
+  background:
+    radial-gradient(38% 34% at 36% 30%, rgba(255,255,255,.30), rgba(255,255,255,0) 62%),
+    radial-gradient(60% 60% at 64% 72%, rgba(120,150,190,.10), rgba(120,150,190,0) 70%);
+  box-shadow:
+    inset 4px 5px 12px rgba(255,255,255,.30),
+    inset -5px -6px 14px rgba(70,100,150,.16);
+  -webkit-mask:radial-gradient(circle, #000 42%, transparent 72%);
+          mask:radial-gradient(circle, #000 42%, transparent 72%);
+}
+
+.hero-video{
+  position:absolute; inset:-4%; width:108%; height:108%;
+  object-fit:cover; mix-blend-mode:multiply; opacity:0; z-index:1
+}
+.hero-video.is-loading{opacity:0}
+.hero-video2{z-index:1; opacity:0}
+.hero-video3{z-index:1; opacity:0}
+.blob{position:absolute; z-index:2; left:2vw; top:9vh; width:min(28vw,340px); height:min(30vh,340px); pointer-events:none;
+  filter:blur(26px); opacity:.9;
+  background:
+    radial-gradient(45% 40% at 40% 30%, rgba(20,20,20,.85), transparent 70%),
+    radial-gradient(35% 45% at 55% 60%, rgba(30,30,30,.7), transparent 72%),
+    radial-gradient(30% 30% at 35% 70%, rgba(10,10,10,.6), transparent 70%)}
+.hero-content{
+  position:relative; z-index:3; text-align:center;
+  padding:0 var(--gutter); width:100%; max-width:100%;
+  transform:none;
+  transition:none;
+}
+/* два независимых текстовых слоя поверх закреплённого видео */
+.state-2{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+.hero-poem-layer,
+.hero-steps-layer{
+  position:absolute;
+  left:355px;
+  top:50%;
+  transform:translateY(-50%);
+  text-align:left;
+  max-width:min(52vw,620px);
+}
+.hero-poem-layer{z-index:1; max-width:min(70vw,900px)}
+.hero-steps-layer{z-index:2}
+@media (max-width:900px){
+  .hero-poem-layer,
+  .hero-steps-layer{
+    left:var(--gutter);
+    max-width:86vw;
+  }
+  .hero-poem span{white-space:normal}
+}
+/* Растворение хиро: расплывающийся текст, без жёсткой линии. */
+.s1line{will-change:opacity,filter,transform}
+.hero-dissolve-line{
+  --line-out:0;
+  will-change:opacity,filter,transform;
+}
+body.hero-dissolve-active .hero-dissolve-line{
+  opacity:calc(1 - var(--line-out));
+  filter:blur(calc(var(--line-out) * 20px));
+  transform:translateY(calc(var(--line-out) * -5px)) scale(calc(1 + var(--line-out) * 0.04));
+}
+.hero-sub-line{
+  display:block;
+  width:max-content;
+  max-width:100%;
+  margin-inline:auto;
+}
+.poem .s2line{display:block; opacity:0; will-change:opacity,filter}
+.step-block{margin-bottom:60px}
+.step-block:last-child{margin-bottom:0}
+.step-line{
+  display:block;
+  font-family:var(--mono);
+  font-size:20px;
+  letter-spacing:-.02em;
+  line-height:1.35;
+  color:var(--ink);
+  opacity:0;
+  filter:blur(8px);
+  will-change:opacity,filter;
+}
+.step-line--num{
+  font-size:20px;
+  letter-spacing:-.02em;
+  color:var(--ink);
+  margin-bottom:6px;
+  text-transform:none;
+}
+.hero-poem{
+  font-family:var(--mono);
+  font-size:clamp(20px,2.6vw,32px);
+  letter-spacing:-.02em;
+  line-height:calc(1em + 2px);
+  color:var(--ink);
+  margin:0;
+  opacity:1;
+  filter:none;
+  transition:none;
+}
+.hero-poem span{
+  display:block;
+  opacity:0;
+  filter:blur(8px);
+  transform:translateY(5px);
+  will-change:opacity,filter,transform;
+  white-space:nowrap;
+}
+
+.wordmark{
+  font-family:var(--display); font-weight:400; letter-spacing:-.03em; line-height:.94;
+  font-size:clamp(40px,13vw,220px); color:var(--ink); margin:0;
+  white-space:nowrap; max-width:100%;
+}
+.wordmark .w{display:inline-block; white-space:pre}
+.wordmark .ltr{
+  display:inline-block; filter:blur(22px); opacity:0; transform:translateY(8px);
+  text-shadow:2px 0 rgba(91,143,212,.35), -2px 0 rgba(220,120,160,.25);
+  transition:
+    filter 1.1s cubic-bezier(.2,.7,.2,1),
+    opacity .95s ease,
+    transform 1s ease,
+    text-shadow 1.2s ease;
+  transition-delay:var(--enter-delay,0s);
+}
+.wordmark.in .ltr{
+  filter:blur(0); opacity:1; transform:none;
+  text-shadow:0 0 transparent;
+}
+
+.hero-sub{display:block; margin:40px auto 0; font-family:var(--mono); font-size:clamp(16px,2vw,20px); letter-spacing:-.02em; color:var(--ink); line-height:1.1; text-align:center; width:fit-content; max-width:100%}
+.hero-cta{
+  margin:36px 0 0; font-family:var(--mono);
+  font-size:clamp(14px,1.5vw,18px); letter-spacing:-.02em; color:var(--muted);
+}
+.hero-cap{margin:60px 0 0; font-family:var(--mono); font-size:clamp(14px,1.5vw,20px); letter-spacing:-.02em; color:var(--muted)}
+.hero-arrow{
+  margin-top:16px; font-family:var(--mono); font-size:clamp(16px,1.5vw,20px); color:var(--muted);
+  animation:bob 2.4s ease-in-out infinite;
+}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+
+.reveal{filter:blur(10px); opacity:0; transform:translateY(8px); transition:filter 1s ease, opacity .9s ease, transform .9s ease}
+.reveal.in{filter:blur(0); opacity:1; transform:none}
+.reveal-d1{transition-delay:.15s}
+.reveal-d2{transition-delay:.35s}
+
+.hero-end{
+  height:40vh; display:flex; align-items:flex-start; justify-content:center;
+  padding:8vh var(--gutter) 0; color:var(--faint); font-size:clamp(13px,1.2vw,16px); letter-spacing:-.02em;
+}
+
+@media (max-width:520px){
+  .wordmark{white-space:normal; line-height:.98; font-size:clamp(34px,11.5vw,72px)}
+  .hero-cap{margin-top:clamp(32px,8vw,60px)}
+}
+
+/* ======== БЛОК 2 · ARHIVE ======== */
+.archive{position:relative; z-index:2; background:linear-gradient(to bottom, #EEEFEC 0%, #E7E4E3 100%); padding:clamp(56px,7vw,104px) var(--gutter) 120px}
+.arc-title{font-family:var(--display); font-weight:400; font-size:clamp(46px,8vw,110px); letter-spacing:-.03em; line-height:.9; margin:0; color:var(--ink);
+  opacity:0; filter:blur(18px); transform:translateY(10px) scale(1.04);
+  transition:opacity 1.2s cubic-bezier(.2,.7,.2,1), filter 1.2s cubic-bezier(.2,.7,.2,1), transform 1.2s cubic-bezier(.2,.7,.2,1)}
+.arc-sub{font-family:var(--mono); font-size:clamp(13px,1.35vw,17px); letter-spacing:-.02em; line-height:1.5; color:var(--ink); margin:16px 0 0;
+  opacity:0; filter:blur(14px); transform:translateY(8px) scale(1.03);
+  transition:opacity 1.1s cubic-bezier(.2,.7,.2,1), filter 1.1s cubic-bezier(.2,.7,.2,1), transform 1.1s cubic-bezier(.2,.7,.2,1)}
+.arc-head.in .arc-title{opacity:1; filter:blur(0); transform:none}
+.arc-head.in .arc-sub{opacity:1; filter:blur(0); transform:none}
+.arc-cta{display:inline-block; margin:26px 0 0; font-family:var(--mono); font-size:14px; letter-spacing:-.02em; color:var(--bg); background:var(--ink); padding:12px 20px; border:none; border-radius:2px; cursor:pointer; transition:opacity .3s}
+.arc-cta:hover{opacity:.86}
+
+.arc-toolbar{display:flex; justify-content:space-between; align-items:center; gap:18px; margin:clamp(34px,4vw,52px) 0 30px; flex-wrap:wrap}
+.arc-search{position:relative; flex:1 1 300px; max-width:460px}
+.arc-search__ico{position:absolute; left:18px; top:50%; transform:translateY(-50%); width:18px; height:18px; color:var(--muted); pointer-events:none}
+.arc-search input{width:100%; font-family:var(--mono); font-size:14px; letter-spacing:-.02em; color:var(--ink);
+  padding:15px 18px 15px 48px; border:1px solid rgba(30,30,28,.32); background:transparent; border-radius:10px; outline:none}
+.arc-search input::placeholder{color:var(--muted)}
+.arc-search input:focus{border-color:var(--ink)}
+.arc-search input::-webkit-search-cancel-button{-webkit-appearance:none}
+.arc-filters{display:flex; gap:8px; flex-wrap:wrap}
+.arc-filter{font-family:var(--mono); font-size:13px; letter-spacing:-.02em; color:var(--muted);
+  padding:9px 16px; border:1px solid rgba(30,30,28,.32); background:transparent; border-radius:7px; cursor:pointer; transition:.2s}
+.arc-filter:hover{color:var(--ink); border-color:var(--ink)}
+.arc-filter[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+
+.arc-grid{display:grid; grid-template-columns:repeat(6,1fr); gap:22px 20px}
+.card{opacity:0; transform:translateY(40px) scale(.98); filter:blur(8px); transition:opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1), filter .7s ease}
+.card.in{opacity:1; transform:none; filter:blur(0)}
+.card.hidden{display:none}
+.card__cover{position:relative; aspect-ratio:1/1.16; overflow:hidden; border-radius:2px; background:#e0e0dd;
+  background-image:var(--bw); background-size:cover; background-position:center; transition:transform .55s cubic-bezier(.2,.7,.2,1), filter .5s ease}
+.card__cover::after{content:""; position:absolute; inset:0; background-image:var(--color);
+  background-size:cover; background-position:center; opacity:0; transition:opacity 1.1s ease}
+.card:hover .card__cover::after{opacity:1}
+.card:hover .card__cover{transform:scale(1.035)}
+/* при наведении на одну карточку — остальные сильно затемняются и блюрятся */
+.arc-grid.has-card-hover .card:not(:hover){opacity:.28; filter:blur(7px) brightness(.94)}
+.arc-grid.has-card-hover .card:not(:hover) .card__cover{transform:scale(.95)}
+.arc-grid.has-card-hover .card:not(:hover) .card__cover::after{opacity:0}
+.card__head{display:flex; gap:10px; margin:12px 0 8px; font-family:var(--mono); font-size:16px; letter-spacing:-.01em; color:var(--ink); text-transform:uppercase; transition:opacity .4s ease}
+.card__num{color:var(--faint)}
+.card__desc{font-family:var(--mono); font-size:16px; line-height:1.45; letter-spacing:-.02em; color:var(--muted); margin:0 0 12px; white-space:pre-line; min-height:calc(1.45em * 3); transition:opacity .4s ease}
+.card__tag{display:inline-block; font-family:var(--mono); font-size:12px; letter-spacing:-.01em; color:var(--muted);
+  padding:7px 13px; border:1px solid rgba(30,30,28,.32); border-radius:7px; text-transform:none; transition:opacity .4s ease}
+.arc-grid.has-card-hover .card:not(:hover) .card__head,
+.arc-grid.has-card-hover .card:not(:hover) .card__desc,
+.arc-grid.has-card-hover .card:not(:hover) .card__tag{opacity:.4}
+@media (max-width:1200px){ .arc-grid{grid-template-columns:repeat(4,1fr)} }
+@media (max-width:820px){ .arc-grid{grid-template-columns:repeat(3,1fr)} }
+@media (max-width:560px){ .arc-grid{grid-template-columns:repeat(2,1fr)} }
+
+/* ======== МОДАЛКА КАРТОЧКИ ======== */
+.modal{position:fixed; inset:0; z-index:100; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .45s ease, visibility .45s}
+.modal.open{opacity:1; visibility:visible; pointer-events:auto}
+.modal__panel{transform:translateY(14px) scale(.995); transition:transform .55s cubic-bezier(.2,.7,.2,1)}
+.modal.open .modal__panel{transform:none}
+.modal__overlay{position:absolute; inset:0; background:rgba(233,232,229,.72); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px)}
+.modal__panel{position:absolute; inset:0; margin:0;
+  background:var(--bg); border:none; border-radius:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; -ms-overflow-style:none; padding:clamp(20px,3vw,40px)}
+.modal__panel::-webkit-scrollbar{display:none; width:0; height:0}
+.modal__topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:clamp(20px,3vw,34px); font-family:var(--mono); font-size:12px; letter-spacing:.02em; text-transform:uppercase; color:var(--muted)}
+.modal__nav{background:none; border:none; font:inherit; color:var(--muted); text-transform:uppercase; cursor:pointer; transition:color .2s}
+.modal__nav:hover{color:var(--ink)}
+.modal__body{display:grid; grid-template-columns:1fr 1fr; gap:clamp(28px,4vw,60px); max-width:1180px; margin:0 auto}
+.modal__img{aspect-ratio:1/1; background:#e0e0dd; background-size:cover; background-position:center; border-radius:2px}
+.modal__related{margin-top:22px}
+.modal__related-label{font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:12px}
+.modal__related-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+.modal__related-grid .r{aspect-ratio:1/1; background:#e0e0dd; background-size:cover; background-position:center; border-radius:2px; cursor:pointer; transition:opacity .3s}
+.modal__related-grid .r:hover{opacity:.8}
+.modal__eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+.modal__title{font-family:var(--mono); font-weight:400; font-size:clamp(28px,3.6vw,46px); line-height:1.05; letter-spacing:-.03em; margin:14px 0 26px; color:var(--ink); text-transform:uppercase}
+.modal__desc{font-family:var(--mono); font-size:clamp(14px,1.3vw,16px); line-height:1.5; letter-spacing:-.02em; color:var(--ink); margin:0 0 26px; white-space:pre-line}
+.modal__moods{display:flex; flex-wrap:wrap; gap:10px; padding:22px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
+.modal__moods:empty{display:none}
+.modal__mood{font-family:var(--mono); font-size:12px; letter-spacing:-.01em; text-transform:uppercase; color:var(--muted); padding:8px 16px; border:1px solid rgba(30,30,28,.32); border-radius:7px}
+.modal__note{font-family:var(--mono); font-size:clamp(13px,1.2vw,15px); line-height:1.5; letter-spacing:-.02em; color:var(--muted); margin:22px 0; white-space:pre-line}
+.modal__note:empty{display:none}
+.modal__meta{display:grid; grid-template-columns:auto 1fr; gap:14px 40px; margin:0; padding-top:22px; border-top:1px solid var(--line)}
+.modal__meta dt{font-family:var(--mono); font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
+.modal__meta dd{font-family:var(--mono); font-size:13px; letter-spacing:-.01em; color:var(--ink); margin:0}
+.modal__actions{display:flex; gap:14px; margin-top:34px; flex-wrap:wrap}
+.modal__btn{font-family:var(--mono); font-size:13px; letter-spacing:-.01em; text-transform:uppercase; padding:14px 22px; border-radius:3px; cursor:pointer; transition:.2s}
+.modal__btn--ghost{background:transparent; border:1px solid var(--ink); color:var(--ink)}
+.modal__btn--ghost:hover{background:var(--ink); color:var(--bg)}
+.modal__btn--solid{background:var(--ink); border:1px solid var(--ink); color:var(--bg)}
+.modal__btn--solid:hover{opacity:.86}
+@media (max-width:820px){ .modal__body{grid-template-columns:1fr} }
+
+/* ======== ЛАБОРАТОРИЯ (визард, full-screen inline) ======== */
+.lab{position:relative; z-index:2; background:var(--bg); padding:0; overflow:hidden}
+.lab-head{max-width:760px; margin:0 0 clamp(28px,4vw,44px)}
+.lab-heading{font-family:var(--display); font-weight:400; font-size:clamp(46px,9vw,120px); letter-spacing:-.03em; line-height:.9; margin:0; color:var(--ink); text-transform:uppercase}
+.lab-subtitle{font-family:var(--mono); font-size:clamp(13px,1.35vw,17px); letter-spacing:-.02em; line-height:1.5; color:var(--ink); margin:16px 0 0; white-space:pre-line}
+.lab-stage{position:relative; display:grid; grid-template-columns:minmax(0,1fr) 1.35fr; gap:clamp(30px,5vw,90px); align-items:center; width:100%; min-height:100svh; padding:clamp(90px,11vw,130px) var(--gutter) clamp(40px,5vw,60px)}
+.lab-index{position:absolute; top:clamp(26px,3vw,38px); right:var(--gutter); font-family:var(--mono); font-size:clamp(18px,2vw,26px); letter-spacing:.14em; color:var(--ink); z-index:3}
+.lab-back-btn{display:inline-block; font-family:var(--mono); font-size:13px; letter-spacing:-.02em; color:var(--muted); background:none; border:none; cursor:pointer; padding:0; margin:0 0 18px; transition:color .3s}
+.lab-back-btn:hover{color:var(--ink)}
+.lab-left{max-width:560px; transition:opacity .55s ease, filter .55s ease; z-index:2}
+.lab-visual{position:relative; justify-self:end; align-self:stretch; width:100%; height:100%; min-height:78vh; aspect-ratio:auto; margin-right:calc(var(--gutter) * -1)}
+.lab-vis-img{position:absolute; inset:-8%; background-size:cover; background-repeat:no-repeat; background-position:center center; opacity:0; filter:blur(14px);
+  mix-blend-mode:multiply;
+  transition:opacity 1.2s ease, filter 1.2s ease;
+  -webkit-mask:radial-gradient(60% 60% at 50% 50%, #000 0%, #000 38%, rgba(0,0,0,.5) 60%, rgba(0,0,0,0) 78%);
+          mask:radial-gradient(60% 60% at 50% 50%, #000 0%, #000 38%, rgba(0,0,0,.5) 60%, rgba(0,0,0,0) 78%)}
+.lab-vis-img.on{opacity:1; filter:blur(0)}
+.lab-title{font-family:var(--mono); font-weight:400; font-size:clamp(26px,3.4vw,44px); line-height:1.12; letter-spacing:-.03em; margin:0; color:var(--ink); white-space:pre-line; text-transform:uppercase}
+.lab-title.is-intro{font-family:var(--display); font-size:clamp(46px,9vw,120px); letter-spacing:-.03em; line-height:.9; text-transform:uppercase}
+.lab-sub{font-family:var(--mono); font-size:clamp(14px,1.3vw,17px); line-height:1.4; letter-spacing:-.02em; color:var(--ink); margin:22px 0 30px; white-space:pre-line}
+.lab-field{margin-bottom:22px}
+.lab-textarea, .lab-text{width:100%; font-family:var(--mono); font-size:15px; letter-spacing:-.02em; color:var(--ink); padding:16px 18px; border:1px solid rgba(30,30,28,.32); background:transparent; border-radius:10px; outline:none; resize:none}
+.lab-textarea{min-height:104px; line-height:1.4}
+.lab-textarea::placeholder, .lab-text::placeholder{color:var(--faint)}
+.lab-textarea:focus, .lab-text:focus{border-color:var(--ink)}
+.lab-hint{font-family:var(--mono); font-size:13px; letter-spacing:-.02em; color:var(--muted); margin:0 0 10px}
+.lab-voice{display:flex; align-items:center; gap:14px; padding:12px 18px; border:1px solid rgba(30,30,28,.32); border-radius:10px}
+.lab-voice .wave{flex:1; height:34px; color:var(--ink)}
+.lab-voice .mic{width:20px; height:20px; color:var(--muted); flex:none}
+.lab-chips{display:flex; flex-wrap:wrap; gap:12px}
+.lab-chip{font-family:var(--mono); font-size:14px; letter-spacing:-.02em; color:var(--ink); padding:11px 18px; border:1px solid rgba(30,30,28,.32); background:transparent; border-radius:8px; cursor:pointer; transition:.2s}
+.lab-chip:hover{border-color:var(--ink)}
+.lab-chip.active{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.lab-range{width:100%; margin-top:14px; accent-color:var(--ink)}
+.lab-prog-label{font-family:var(--mono); font-size:13px; letter-spacing:-.02em; color:var(--muted); margin-bottom:10px}
+.lab-prog{display:flex; align-items:center; gap:18px}
+.lab-prog .bar{flex:1; height:3px; background:rgba(30,30,28,.18); position:relative}
+.lab-prog .bar span{position:absolute; left:0; top:0; bottom:0; background:var(--ink)}
+.lab-prog .pct{font-family:var(--mono); font-size:clamp(18px,2vw,26px); color:var(--ink)}
+.lab-cta{display:inline-flex; align-items:center; gap:44px; font-family:var(--mono); font-size:15px; letter-spacing:-.02em; color:var(--bg); background:var(--ink); border:1px solid var(--ink); padding:17px 26px; border-radius:8px; cursor:pointer; transition:.2s}
+.lab-cta:hover{opacity:.88}
+.lab-cta--ghost{display:inline-flex; align-items:center; gap:44px; font-family:var(--mono); font-size:15px; letter-spacing:-.02em; color:var(--ink); background:transparent; border:1px solid rgba(30,30,28,.32); padding:16px 26px; border-radius:8px; cursor:pointer; transition:.2s}
+.lab-cta--ghost:hover{border-color:var(--ink)}
+.lab-actions{display:flex; flex-direction:column; gap:12px; align-items:stretch; margin-top:6px; max-width:360px}
+.lab-actions .lab-cta, .lab-actions .lab-cta--ghost{justify-content:space-between}
+.lab-actions--row{flex-direction:row; flex-wrap:wrap; max-width:none; align-items:center}
+.lab-actions--row .lab-cta, .lab-actions--row .lab-cta--ghost{justify-content:center}
+.lab-footer{font-family:var(--mono); font-size:12px; letter-spacing:-.02em; color:var(--muted); margin-top:32px; white-space:pre-line}
+.lab-label{font-family:var(--mono); font-size:13px; letter-spacing:-.02em; color:var(--muted); margin-bottom:10px}
+.lab-checks{display:flex; flex-direction:column; gap:16px; margin:20px 0 26px}
+.lab-check{display:flex; align-items:center; gap:12px; font-family:var(--mono); font-size:14px; letter-spacing:-.02em; color:var(--ink); cursor:pointer}
+.lab-check input{width:20px; height:20px; accent-color:var(--ink)}
+.lab-strong{color:var(--ink)}
+.lab-bignum{font-family:var(--mono); font-size:clamp(30px,4vw,52px); letter-spacing:.1em; color:var(--ink); margin:26px 0}
+.lab-caption{position:absolute; left:6px; bottom:-44px; font-family:var(--mono); font-size:clamp(16px,1.8vw,22px); letter-spacing:-.02em; color:var(--ink); text-transform:uppercase}
+.lab-capnum{position:absolute; right:6px; bottom:-40px; font-family:var(--mono); font-size:clamp(16px,1.6vw,22px); letter-spacing:.08em; color:var(--ink)}
+@media (max-width:900px){ .lab-stage{grid-template-columns:1fr; min-height:auto; padding:clamp(80px,14vw,110px) var(--gutter) clamp(40px,6vw,60px)} .lab-visual{order:-1; justify-self:center; width:min(78vw,420px); height:auto; aspect-ratio:1/1.14; min-height:auto; margin-right:0} .lab-index{position:static; margin-bottom:6px} .lab-caption,.lab-capnum{position:static; display:inline-block; margin-top:12px} }
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important; transition-duration:.001s!important}
+  .wordmark .ltr,.reveal{filter:none;opacity:1;transform:none;text-shadow:none}
+  .liquid,.cursor-aura{filter:none;opacity:.25}
+  .hero-content{transform:none}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="liquidFilter" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+    <feTurbulence id="turb" type="fractalNoise" baseFrequency="0.006 0.008" numOctaves="2" seed="4" result="noise"/>
+    <feDisplacementMap id="disp" in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+
+<div class="loader" id="loader" aria-hidden="true">
+  <div class="loader__mark">Sleep Amnesia</div>
+  <div class="loader__bar"><span></span></div>
+</div>
+<audio id="bgm" src="Муззыка.mp3" loop preload="auto"></audio>
+<div class="grain" aria-hidden="true"></div>
+<div class="trail" id="trail" aria-hidden="true"></div>
+
+<header class="topbar">
+  <span class="brand">SA</span>
+  <nav>
+    <a href="#top" data-nav="top">главная</a>
+    <a href="#" data-nav="archive">архив</a>
+    <a href="#" data-nav="lab">лаборатория</a>
+    <a href="worklog.html" data-nav="worklog">worklog</a>
+  </nav>
+  <button class="sound" id="sound" type="button" aria-pressed="false">sound: off</button>
+</header>
+
+<span id="top"></span>
+
+<section class="hero-scroll" id="hero">
+  <div class="hero-stage">
+    <div class="cursor-aura" id="aura" aria-hidden="true"></div>
+    <div class="liquid" id="liquidLayer">
+      <video class="hero-video is-loading" id="bfly" src="ФОН.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
+      <video class="hero-video hero-video2" id="bfly2" src="ФОН 2.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
+      <video class="hero-video hero-video3" id="bfly3" src="ФОН 3.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
+      <div class="hero-content">
+        <div class="state-1" id="state1">
+          <h1 class="wordmark s1line hero-dissolve-line" id="wordmark" aria-label="Sleep Amnesia" data-reveal-letters>Sleep Amnesia</h1>
+          <p class="hero-sub reveal reveal-d1 s1line" id="hero-sub">
+            <span class="hero-sub-line hero-dissolve-line">Интерактивный архив, который помогает сохранить</span>
+            <span class="hero-sub-line hero-dissolve-line">и восстановить исчезающие фрагменты сновидений.</span>
+          </p>
+          <p class="hero-cta reveal reveal-d2 s1line hero-dissolve-line" id="hero-cta">Восстановить образ</p>
+          <div class="hero-arrow hero-dissolve-line" id="hero-arrow" aria-hidden="true">↓</div>
+        </div>
+        <div class="state-2" id="state2">
+          <div class="hero-poem-layer" id="heroPoemLayer" aria-hidden="true">
+            <div class="hero-poem" id="heroPoem">
+              <span>Здесь</span>
+              <span>забытые образы</span>
+              <span>выходят из кокона памяти</span>
+              <span>и вновь обретают форму</span>
+            </div>
+          </div>
+
+          <div class="hero-steps-layer" id="heroStepsLayer" aria-hidden="true">
+            <div class="step-block">
+              <span class="step-line step-line--num s2line">01</span>
+              <span class="step-line s2line">ВСПОМНИТЕ</span>
+              <span class="step-line s2line">Коротко опишите сон</span>
+              <span class="step-line s2line">или запишите голосом.</span>
+            </div>
+            <div class="step-block">
+              <span class="step-line step-line--num s2line">02</span>
+              <span class="step-line s2line">ПРОЯВИТЕ</span>
+              <span class="step-line s2line">С каждым ответом образ</span>
+              <span class="step-line s2line">становится яснее</span>
+            </div>
+            <div class="step-block">
+              <span class="step-line step-line--num s2line">03</span>
+              <span class="step-line s2line">СОХРАНИТЕ</span>
+              <span class="step-line s2line">Получите архивный фрагмент</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== БЛОК 2 · ARHIVE ======== -->
+<section class="archive" id="archive">
+  <div class="arc-head">
+    <h2 class="arc-title">Archive</h2>
+    <p class="arc-sub">Чужие сны оставляют знакомые следы.<br>Исследуйте образы, которые сохранили другие,<br>находите вдохновение или поделитесь своим фрагментом</p>
+    <button class="arc-cta" type="button">+ Добавить фрагмент</button>
+  </div>
+
+  <div class="arc-toolbar">
+    <div class="arc-search">
+      <svg class="arc-search__ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="16.3" y1="16.3" x2="21" y2="21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <input type="search" id="arcSearch" placeholder="поиск сна" autocomplete="off" />
+    </div>
+    <div class="arc-filters" id="arcFilters" role="group" aria-label="Фильтр карточек">
+      <button class="arc-filter" data-f="все" aria-pressed="true">все</button>
+      <button class="arc-filter" data-f="место" aria-pressed="false">место</button>
+      <button class="arc-filter" data-f="люди" aria-pressed="false">люди</button>
+      <button class="arc-filter" data-f="объект" aria-pressed="false">объект</button>
+      <button class="arc-filter" data-f="природа" aria-pressed="false">природа</button>
+    </div>
+  </div>
+
+  <div class="arc-grid" id="arcGrid"></div>
+</section>
+
+<!-- ======== ЛАБОРАТОРИЯ ======== -->
+<section class="lab" id="lab">
+  <div class="lab-stage">
+    <div class="lab-index" id="labIndex">01 / 06</div>
+    <div class="lab-left" id="labLeft"></div>
+    <div class="lab-visual" id="labVisual">
+      <div class="lab-vis-img" id="labVisA"></div>
+      <div class="lab-vis-img" id="labVisB"></div>
+      <div class="lab-vis-cap" id="labVisCap"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== МОДАЛКА КАРТОЧКИ ======== -->
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="modal__overlay" data-close></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Фрагмент сна">
+    <div class="modal__topbar">
+      <button class="modal__nav" type="button" data-close>← назад в архив</button>
+      <button class="modal__nav" type="button" id="modalNext">следующий фрагмент →</button>
+    </div>
+    <div class="modal__body">
+      <div class="modal__left">
+        <div class="modal__img" id="modalImg"></div>
+        <div class="modal__related">
+          <div class="modal__related-label">связанные образы</div>
+          <div class="modal__related-grid" id="modalRelated"></div>
+        </div>
+      </div>
+      <div class="modal__right">
+        <div class="modal__eyebrow" id="modalEyebrow">01 / фрагмент</div>
+        <h3 class="modal__title" id="modalTitle">Белая бабочка</h3>
+        <p class="modal__desc" id="modalDesc"></p>
+        <div class="modal__moods" id="modalMoods"></div>
+        <p class="modal__note" id="modalNote"></p>
+        <dl class="modal__meta" id="modalMeta"></dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var coarse = matchMedia('(pointer: coarse)').matches;
+  if (coarse) document.body.classList.add('no-pointer');
+
+  /* ---------- перезагрузка всегда с начала ---------- */
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  window.scrollTo(0, 0);
+  addEventListener('pageshow', function(){ window.scrollTo(0, 0); });
+
+  /* ---------- intro-loader ---------- */
+  var loaderEl = document.getElementById('loader');
+  if (loaderEl) {
+    if (reduce) { loaderEl.classList.add('done'); }
+    else {
+      requestAnimationFrame(function(){ loaderEl.classList.add('fill'); });
+      var hideLoader = function(){ setTimeout(function(){ loaderEl.classList.add('done'); }, 1150); };
+      if (document.readyState === 'complete') hideLoader(); else addEventListener('load', hideLoader);
+      setTimeout(function(){ loaderEl.classList.add('done'); }, 3200); // failsafe
+    }
+  }
+
+  /* ---------- split заголовка ---------- */
+  function splitLetters(el){
+    var text = el.textContent;
+    el.textContent = '';
+    text.split(/(\s+)/).forEach(function(chunk){
+      if (/^\s+$/.test(chunk)) {
+        el.appendChild(document.createTextNode(chunk));
+        return;
+      }
+      var word = document.createElement('span');
+      word.className = 'w';
+      chunk.split('').forEach(function(ch){
+        var s = document.createElement('span');
+        s.className = 'ltr';
+        s.textContent = ch;
+        word.appendChild(s);
+      });
+      el.appendChild(word);
+    });
+    el.querySelectorAll('.ltr').forEach(function(k, i){
+      k.style.setProperty('--enter-delay', (i * 0.045) + 's');
+      k.style.setProperty('--exit-delay', (i * 0.075) + 's');
+    });
+  }
+
+  document.querySelectorAll('[data-reveal-letters]').forEach(splitLetters);
+
+  var wm = document.getElementById('wordmark');
+  var reveals = document.querySelectorAll('.reveal');
+
+  function revealAll(){
+    wm.classList.add('in');
+    reveals.forEach(function(el){ el.classList.add('in'); });
+  }
+
+  /* последовательное проявление: вордмарк → подписи */
+  setTimeout(function(){ wm.classList.add('in'); }, 280);
+  setTimeout(function(){
+    document.getElementById('hero-sub').classList.add('in');
+  }, 1100);
+  setTimeout(function(){
+    document.getElementById('hero-cta').classList.add('in');
+  }, 1450);
+  setTimeout(function(){
+    document.getElementById('hero-arrow').classList.add('in');
+  }, 1750);
+
+  /* failsafe из worklog — ничего не остаётся невидимым */
+  setTimeout(revealAll, 2400);
+
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  reveals.forEach(function(el){ io.observe(el); });
+
+  /* ---------- аура курсора ---------- */
+  var mx = 0.5, my = 0.5, tmx = 0.5, tmy = 0.5;
+  if (!reduce && !coarse) {
+    addEventListener('pointermove', function(e){
+      tmx = e.clientX / innerWidth;
+      tmy = e.clientY / innerHeight;
+    }, { passive: true });
+  }
+
+  /* ---------- вязкий след-рефракция: цепочка «линз» ---------- */
+  var trail = document.getElementById('trail');
+  var TN = 16;                       // число линз в следе
+  var lens = [];
+  var thx = innerWidth/2, thy = innerHeight/2;   // цель головы (курсор)
+  var hx = thx, hy = thy;            // текущая голова (вязко догоняет курсор)
+  if (!reduce && !coarse) {
+    for (var li=0; li<TN; li++){
+      var f = 1 - li/TN;                          // хвост тоньше и мельче
+      var el = document.createElement('span');
+      el.className = 'tb';
+      var sz = Math.round(46 + 118*f);            // голова крупнее
+      el.style.width = sz+'px'; el.style.height = sz+'px';
+      el.style.opacity = (0.35 + 0.5*f).toFixed(2);
+      trail.appendChild(el);
+      lens.push({x:hx, y:hy, el:el});
+    }
+    addEventListener('pointermove', function(e){
+      document.body.classList.add('pointer-on');
+      thx = e.clientX; thy = e.clientY;
+    }, { passive: true });
+  }
+
+  /* ---------- закреплённая хиро-последовательность ---------- */
+  var video = document.getElementById('bfly');
+  var video2 = document.getElementById('bfly2');
+  var video3 = document.getElementById('bfly3');
+  var heroScroll = document.getElementById('hero');
+  var state1 = document.getElementById('state1');
+  var state2 = document.getElementById('state2');
+  var s2lines = state2.querySelectorAll('.s2line');
+  var heroPoem = document.getElementById('heroPoem');
+  var poemLines = heroPoem ? heroPoem.querySelectorAll('span') : [];
+  var heroPoemLayer = document.getElementById('heroPoemLayer');
+  var heroStepsLayer = document.getElementById('heroStepsLayer');
+  var heroSubLines = document.querySelectorAll('.hero-sub-line');
+  var heroCta = document.getElementById('hero-cta');
+  var heroArrow = document.getElementById('hero-arrow');
+
+  function setLineOut(element, value){
+    if (!element) return;
+    element.style.setProperty('--line-out', clamp01(value).toFixed(4));
+  }
+
+  var lastScrollY = -1;
+  var heroActive = true;
+  var heroAnchorY = 0;
+  var heroPhase = 'video1';
+  var phaseProgress = 0;
+
+  var titleDissolveStarted = false;
+  var titleDissolveProgress = 0;
+  var poemPauseGestures = 0;
+
+  var wheelGestureOpen = false;
+  var wheelGestureTimer = 0;
+  var touchY = null;
+  var finalReleaseTimer = 0;
+
+  var WHEEL_GESTURE_GAP_MS = 80;
+  var VIDEO1_SCROLL_DISTANCE = 1900;
+  var TITLE_DISSOLVE_DISTANCE = 720;
+  var VIDEO2_SCROLL_DISTANCE = 1650;
+  var VIDEO3_SCROLL_DISTANCE = 1700;
+  var FINAL_TEXT_SCROLL_DISTANCE = 1450;
+  var FINAL_HOLD_MS = 550;
+  var VIDEO_END_EPSILON = 0.04;
+
+  function clamp01(value){
+    return Math.max(0, Math.min(1, value));
+  }
+
+  function easeOut(value){
+    value = clamp01(value);
+    return 1 - Math.pow(1 - value, 2.5);
+  }
+
+  function lineProgress(progress, start, end){
+    return clamp01((progress - start) / Math.max(0.001, end - start));
+  }
+
+  function getHeroTop(){
+    return heroScroll.getBoundingClientRect().top + window.scrollY;
+  }
+
+  function keepHeroViewportFixed(){
+    if (!heroActive) return;
+    if (Math.abs(window.scrollY - heroAnchorY) > 1) {
+      window.scrollTo(0, heroAnchorY);
+    }
+  }
+
+  function safeVideoProgress(videoElement, progress){
+    if (!videoElement || !Number.isFinite(videoElement.duration)) return;
+    var endTime = Math.max(0, videoElement.duration - VIDEO_END_EPSILON);
+    var target = clamp01(progress) * endTime;
+    if (!videoElement.seeking && Math.abs((videoElement.currentTime || 0) - target) > 0.015) {
+      try { videoElement.currentTime = target; } catch (error) {}
+    }
+  }
+
+  function markVideoReady(videoElement){
+    if (!videoElement) return;
+    videoElement.classList.remove('is-loading');
+    renderHeroState();
+  }
+
+  [video, video2, video3].forEach(function(videoElement){
+    if (!videoElement) return;
+    videoElement.muted = true;
+    videoElement.pause();
+    videoElement.addEventListener('loadedmetadata', function(){ markVideoReady(videoElement); });
+    videoElement.addEventListener('canplay', function(){ markVideoReady(videoElement); });
+    videoElement.addEventListener('error', function(){
+      videoElement.classList.remove('is-loading');
+      console.error('Hero video failed to load:', videoElement.currentSrc || videoElement.src);
+    });
+    videoElement.load();
+  });
+
+  function isNewWheelGesture(){
+    var isNew = !wheelGestureOpen;
+    wheelGestureOpen = true;
+
+    if (wheelGestureTimer) clearTimeout(wheelGestureTimer);
+    wheelGestureTimer = setTimeout(function(){
+      wheelGestureOpen = false;
+      wheelGestureTimer = 0;
+    }, WHEEL_GESTURE_GAP_MS);
+
+    return isNew;
+  }
+
+  function normalizeWheelDelta(event){
+    var multiplier = event.deltaMode === 1
+      ? 16
+      : (event.deltaMode === 2 ? innerHeight : 1);
+    return Math.max(-120, Math.min(120, event.deltaY * multiplier));
+  }
+
+  function setPhase(nextPhase, nextProgress){
+    heroPhase = nextPhase;
+    phaseProgress = clamp01(nextProgress || 0);
+    renderHeroState();
+  }
+
+  function scheduleHeroRelease(){
+    if (finalReleaseTimer) return;
+    finalReleaseTimer = setTimeout(function(){
+      finalReleaseTimer = 0;
+      releaseHeroSequence();
+    }, FINAL_HOLD_MS);
+  }
+
+  function releaseHeroSequence(){
+    if (!heroActive) return;
+    heroActive = false;
+    var heroTop = getHeroTop();
+    var total = Math.max(0, heroScroll.offsetHeight - innerHeight);
+    window.scrollTo(0, Math.max(heroTop, heroTop + total - 2));
+  }
+
+  function resetHeroSequence(){
+    if (finalReleaseTimer) {
+      clearTimeout(finalReleaseTimer);
+      finalReleaseTimer = 0;
+    }
+
+    heroActive = true;
+    heroPhase = 'video1';
+    phaseProgress = 0;
+    titleDissolveStarted = false;
+    titleDissolveProgress = 0;
+    poemPauseGestures = 0;
+    wheelGestureOpen = false;
+
+    heroAnchorY = getHeroTop();
+    window.scrollTo(0, heroAnchorY);
+    renderHeroState();
+  }
+
+  function skipHeroSequence(){
+    if (finalReleaseTimer) {
+      clearTimeout(finalReleaseTimer);
+      finalReleaseTimer = 0;
+    }
+    heroActive = false;
+  }
+
+  function movePhaseBackward(){
+    if (heroPhase === 'video2' && phaseProgress <= 0) {
+      setPhase('video1', 0.995);
+      return true;
+    }
+    if (heroPhase === 'poemPause') {
+      poemPauseGestures = 0;
+      setPhase('video2', 0.995);
+      return true;
+    }
+    if (heroPhase === 'video3' && phaseProgress <= 0) {
+      poemPauseGestures = 1;
+      setPhase('poemPause', 1);
+      return true;
+    }
+    if (heroPhase === 'finalText' && phaseProgress <= 0) {
+      setPhase('video3', 0.995);
+      return true;
+    }
+    return false;
+  }
+
+  function advanceHero(delta, gestureStart){
+    if (!heroActive || !delta) return;
+
+    var forward = delta > 0;
+
+    if (heroPhase === 'video1') {
+      phaseProgress = clamp01(phaseProgress + delta / VIDEO1_SCROLL_DISTANCE);
+
+      if (titleDissolveStarted) {
+        titleDissolveProgress = clamp01(
+          titleDissolveProgress + delta / TITLE_DISSOLVE_DISTANCE
+        );
+      }
+
+      if (forward && phaseProgress >= 1) {
+        titleDissolveStarted = true;
+        titleDissolveProgress = 1;
+        setPhase('video2', 0);
+        return;
+      }
+    }
+    else if (heroPhase === 'video2') {
+      phaseProgress = clamp01(phaseProgress + delta / VIDEO2_SCROLL_DISTANCE);
+
+      if (!forward && phaseProgress <= 0 && movePhaseBackward()) return;
+
+      if (forward && phaseProgress >= 1) {
+        poemPauseGestures = 0;
+        setPhase('poemPause', 1);
+        return;
+      }
+    }
+    else if (heroPhase === 'poemPause') {
+      if (!forward && gestureStart) {
+        movePhaseBackward();
+        return;
+      }
+
+      if (forward && gestureStart) {
+        if (poemPauseGestures === 0) {
+          /* Один полный жест колёсиком ничего не меняет: текст стоит на месте. */
+          poemPauseGestures = 1;
+        } else {
+          /* Следующий жест запускает ФОН 3 и одновременно скрывает второй текст. */
+          setPhase('video3', 0);
+          phaseProgress = clamp01(Math.abs(delta) / VIDEO3_SCROLL_DISTANCE);
+        }
+      }
+    }
+    else if (heroPhase === 'video3') {
+      phaseProgress = clamp01(phaseProgress + delta / VIDEO3_SCROLL_DISTANCE);
+
+      if (!forward && phaseProgress <= 0 && movePhaseBackward()) return;
+
+      if (forward && phaseProgress >= 1) {
+        setPhase('finalText', 0);
+        return;
+      }
+    }
+    else if (heroPhase === 'finalText') {
+      if (!forward && finalReleaseTimer) {
+        clearTimeout(finalReleaseTimer);
+        finalReleaseTimer = 0;
+      }
+
+      phaseProgress = clamp01(phaseProgress + delta / FINAL_TEXT_SCROLL_DISTANCE);
+
+      if (!forward && phaseProgress <= 0 && movePhaseBackward()) return;
+
+      if (forward && phaseProgress >= 1) {
+        phaseProgress = 1;
+        scheduleHeroRelease();
+      }
+    }
+
+    renderHeroState();
+  }
+
+  function updateTitleDissolve(){
+    var progress = titleDissolveStarted ? titleDissolveProgress : 0;
+    document.body.classList.toggle('hero-dissolve-active', progress > 0);
+
+    setLineOut(wm, lineProgress(progress, 0.00, 0.30));
+    setLineOut(heroSubLines[0], lineProgress(progress, 0.30, 0.52));
+    setLineOut(heroSubLines[1], lineProgress(progress, 0.52, 0.74));
+    setLineOut(heroCta, lineProgress(progress, 0.74, 0.91));
+    setLineOut(heroArrow, lineProgress(progress, 0.91, 1.00));
+  }
+
+  function updatePoem(){
+    var visible = heroPhase === 'video2' || heroPhase === 'poemPause';
+    var progress = heroPhase === 'poemPause' ? 1 : (heroPhase === 'video2' ? phaseProgress : 0);
+
+    if (heroPoem) heroPoem.style.opacity = visible ? '1' : '0';
+    if (heroPoemLayer) heroPoemLayer.setAttribute('aria-hidden', visible ? 'false' : 'true');
+
+    for (var i = 0; i < poemLines.length; i++) {
+      var start = 0.12 + i * 0.24;
+      var end = start + 0.18;
+      var reveal = visible ? easeOut(lineProgress(progress, start, end)) : 0;
+      poemLines[i].style.opacity = reveal.toFixed(3);
+      poemLines[i].style.filter = 'blur(' + ((1 - reveal) * 8).toFixed(1) + 'px)';
+      poemLines[i].style.transform = 'translateY(' + ((1 - reveal) * 5).toFixed(1) + 'px)';
+    }
+  }
+
+  function updateFinalText(){
+    var visible = heroPhase === 'finalText';
+    var progress = visible ? phaseProgress : 0;
+
+    if (heroStepsLayer) heroStepsLayer.setAttribute('aria-hidden', visible ? 'false' : 'true');
+
+    for (var i = 0; i < s2lines.length; i++) {
+      var start = (i / Math.max(1, s2lines.length - 1)) * 0.80;
+      var end = Math.min(1, start + 0.20);
+      var reveal = visible ? easeOut(lineProgress(progress, start, end)) : 0;
+      s2lines[i].style.opacity = reveal.toFixed(3);
+      s2lines[i].style.filter = 'blur(' + ((1 - reveal) * 7).toFixed(1) + 'px)';
+    }
+  }
+
+  function renderHeroState(){
+    var showVideo1 = heroPhase === 'video1';
+    var showVideo2 = heroPhase === 'video2' || heroPhase === 'poemPause';
+    var showVideo3 = heroPhase === 'video3' || heroPhase === 'finalText';
+
+    if (video) video.style.opacity = showVideo1 ? '0.97' : '0';
+    if (video2) video2.style.opacity = showVideo2 ? '0.97' : '0';
+    if (video3) video3.style.opacity = showVideo3 ? '0.97' : '0';
+
+    safeVideoProgress(video, showVideo1 ? phaseProgress : (showVideo2 || showVideo3 ? 1 : 0));
+    safeVideoProgress(video2, showVideo2 ? (heroPhase === 'poemPause' ? 1 : phaseProgress) : (showVideo3 ? 1 : 0));
+    safeVideoProgress(video3, showVideo3 ? (heroPhase === 'finalText' ? 1 : phaseProgress) : 0);
+
+    /* растворение стартует после 1 секунды первого видео */
+    if (heroPhase === 'video1' && !titleDissolveStarted) {
+      var v1Dur = video && Number.isFinite(video.duration) ? video.duration : 0;
+      var dissolveStart = (v1Dur > 1) ? (1 / v1Dur) : 0.18;
+      if (phaseProgress >= dissolveStart) titleDissolveStarted = true;
+    }
+
+    updateTitleDissolve();
+    updatePoem();
+    updateFinalText();
+  }
+
+  addEventListener('wheel', function(event){
+    if (!heroActive) return;
+    event.preventDefault();
+
+    var delta = normalizeWheelDelta(event);
+    var gestureStart = isNewWheelGesture();
+    advanceHero(delta, gestureStart);
+    keepHeroViewportFixed();
+  }, { passive:false });
+
+  addEventListener('touchstart', function(event){
+    if (!heroActive || !event.touches || !event.touches.length) return;
+    touchY = event.touches[0].clientY;
+  }, { passive:true });
+
+  addEventListener('touchmove', function(event){
+    if (!heroActive || !event.touches || !event.touches.length) return;
+    event.preventDefault();
+
+    var currentY = event.touches[0].clientY;
+    if (touchY === null) touchY = currentY;
+    var delta = Math.max(-80, Math.min(80, touchY - currentY));
+    touchY = currentY;
+
+    advanceHero(delta, false);
+    keepHeroViewportFixed();
+  }, { passive:false });
+
+  addEventListener('touchend', function(){
+    if (!heroActive) return;
+    touchY = null;
+    wheelGestureOpen = false;
+  }, { passive:true });
+
+  addEventListener('keydown', function(event){
+    if (!heroActive) return;
+    var active = document.activeElement;
+    if (active && (active.matches('input, textarea, select') || active.isContentEditable)) return;
+
+    var downKeys = ['ArrowDown','PageDown','End',' '];
+    var upKeys = ['ArrowUp','PageUp','Home'];
+
+    if (downKeys.indexOf(event.key) !== -1) {
+      event.preventDefault();
+      advanceHero(120, true);
+      keepHeroViewportFixed();
+    } else if (upKeys.indexOf(event.key) !== -1) {
+      event.preventDefault();
+      advanceHero(-120, true);
+      keepHeroViewportFixed();
+    }
+  });
+
+  addEventListener('resize', function(){
+    if (heroActive) {
+      heroAnchorY = getHeroTop();
+      keepHeroViewportFixed();
+    }
+    renderHeroState();
+  });
+
+  /* ---------- звук: фоновая музыка ---------- */
+  video.muted = true;
+  var bgm = document.getElementById('bgm');
+  if (bgm) bgm.volume = 0.5;
+  var soundOn = true;
+  try { var _s = localStorage.getItem('sa-sound'); if (_s !== null) soundOn = _s === '1'; } catch (e) {}
+  function soundBtns(){ return document.querySelectorAll('#sound, .lab-sound'); }
+  function applySound(){
+    soundBtns().forEach(function(b){
+      b.textContent = 'sound: ' + (soundOn ? 'on' : 'off');
+      b.classList.toggle('is-on', soundOn);
+      b.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
+    });
+    if (!bgm) return;
+    if (soundOn) { bgm.play().catch(function(){}); } else { bgm.pause(); }
+  }
+  applySound();
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('#sound, .lab-sound'); if (!b) return;
+    soundOn = !soundOn; applySound();
+    try { localStorage.setItem('sa-sound', soundOn ? '1' : '0'); } catch (e2) {}
+  });
+  // браузеры блокируют звук до жеста — стартуем при первом скролле
+  function firstPlay(){
+    if (soundOn && bgm) bgm.play().catch(function(){});
+    removeEventListener('wheel', firstPlay); removeEventListener('touchmove', firstPlay);
+  }
+  addEventListener('wheel', firstPlay, { passive: true });
+  addEventListener('touchmove', firstPlay, { passive: true });
+
+  /* ---------- rAF loop ---------- */
+  var archiveTop = 0;
+  function refreshArchiveTop(){ var a = document.getElementById('archive'); if (a) archiveTop = a.getBoundingClientRect().top + window.scrollY; }
+  refreshArchiveTop();
+  addEventListener('resize', refreshArchiveTop);
+
+  /* растворение заголовка/подзаголовка Архива при появлении в зоне видимости */
+  var arcHead = document.querySelector('.arc-head');
+  if (arcHead) {
+    var arcHeadIO = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if (e.isIntersecting) { arcHead.classList.add('in'); arcHeadIO.unobserve(e.target); } });
+    }, { threshold: 0.2 });
+    arcHeadIO.observe(arcHead);
+    if (reduce) arcHead.classList.add('in');
+  }
+
+  heroAnchorY = getHeroTop();
+  window.scrollTo(0, heroAnchorY);
+  renderHeroState();
+
+  function tick(){
+    keepHeroViewportFixed();
+    var y = window.scrollY;
+    if (y !== lastScrollY) {
+      lastScrollY = y;
+      var scrolled = (y + innerHeight * 0.5) > archiveTop;
+      document.body.classList.toggle('scrolled', scrolled);
+    }
+
+    renderHeroState();
+
+    mx += (tmx - mx) * 0.12;
+    my += (tmy - my) * 0.12;
+    document.documentElement.style.setProperty('--mx', (mx * 100).toFixed(2) + '%');
+    document.documentElement.style.setProperty('--my', (my * 100).toFixed(2) + '%');
+
+    if (!reduce && !coarse && lens.length) {
+      // голова тянется к курсору вязко (густая жидкость)
+      hx += (thx - hx) * 0.14;
+      hy += (thy - hy) * 0.14;
+      lens[0].x += (hx - lens[0].x) * 0.5;
+      lens[0].y += (hy - lens[0].y) * 0.5;
+      lens[0].el.style.transform = 'translate(' + lens[0].x + 'px,' + lens[0].y + 'px) translate(-50%,-50%)';
+      // каждая линза догоняет предыдущую с задержкой → тянущийся след, медленно оседает
+      for (var i=1; i<lens.length; i++){
+        lens[i].x += (lens[i-1].x - lens[i].x) * 0.28;
+        lens[i].y += (lens[i-1].y - lens[i].y) * 0.28;
+        lens[i].el.style.transform = 'translate(' + lens[i].x + 'px,' + lens[i].y + 'px) translate(-50%,-50%)';
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  /* ---------- нав ---------- */
+  document.querySelectorAll('[data-nav]').forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      var nav = a.dataset.nav;
+      if (nav === 'top') { resetHeroSequence(); }
+      else if (nav === 'archive') {
+        skipHeroSequence();
+        var el = document.getElementById('archive');
+        if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+      }
+      else if (nav === 'worklog') {
+        location.href = 'worklog.html';
+      }
+      else if (nav === 'lab') {
+        skipHeroSequence();
+        var labEl = document.getElementById('lab');
+        if (labEl) labEl.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  /* ---------- БЛОК 2 · ARHIVE: карточки, фильтры, поиск ---------- */
+  var CARDS = [
+    {n:'01', t:'Белая бабочка',     d:'Садится на ладонь\nи не улетает\nдольше мгновения', tag:'объект'},
+    {n:'02', t:'Поле в тумане',     d:'Тропа исчезает\nсреди белых цветов.\nКаждый шаг начинается заново', tag:'место'},
+    {n:'03', t:'Чей-то зов',        d:'Голос звучит совсем рядом.\nНо фигура растворяется\nв тумане раньше ответа', tag:'люди'},
+    {n:'04', t:'Маяк',              d:'Свет появляется там,\nгде нет берега\nи некому ждать', tag:'место'},
+    {n:'05', t:'Тихая вода',        d:'Озеро неподвижно,\nсловно зеркало. В отражении\nнебо выглядит другим', tag:'природа'},
+    {n:'06', t:'Пустые качели',     d:'Они медленно движутся\nбез ветра. Кажется, кто-то\nтолько что ушёл', tag:'объект'},
+    {n:'07', t:'Старая комната',    d:'Свет проходит\nсквозь тонкие занавески.\nСтул будто кого-то ждёт', tag:'место'},
+    {n:'08', t:'Сквозь стекло',     d:'За матовой поверхностью\nпроступает тёмный\nнезнакомый силуэт', tag:'люди'},
+    {n:'09', t:'Луна в дымке',      d:'Луна почти исчезает.\nСвет растворяется\nв тумане без следа', tag:'объект'},
+    {n:'10', t:'Живой лес',         d:'Деревья меняют места.\nТропа ведёт иначе,\nчем минуту назад', tag:'природа'},
+    {n:'11', t:'Незнакомец вдали',  d:'Одинокая фигура стоит\nна склоне. Расстояние\nне меняется совсем', tag:'люди'},
+    {n:'12', t:'Далёкий город',     d:'Город проступает в тумане.\nОгни дрожат на горизонте,\nдо них не добраться', tag:'место'}
+  ];
+  var grid = document.getElementById('arcGrid');
+  if (grid){
+    CARDS.forEach(function(c, i){
+      var idx = i + 1;
+      var el = document.createElement('article');
+      el.className = 'card';
+      el.setAttribute('data-tag', c.tag);
+      el.setAttribute('data-text', (c.t + ' ' + c.d).toLowerCase());
+      el.innerHTML =
+        '<div class="card__cover" style=\'--bw:url("карточки/' + idx + '.webp"); --color:url("карточки цвет/' + idx + '.webp")\'></div>' +
+        '<div class="card__head"><span class="card__num">' + c.n + '</span><span class="card__title">' + c.t + '</span></div>' +
+        '<p class="card__desc">' + c.d + '</p>' +
+        '<span class="card__tag">' + c.tag + '</span>';
+      grid.appendChild(el);
+    });
+
+    var cards = grid.querySelectorAll('.card');
+
+    /* Блюр соседних карточек включается только при наведении на конкретную карточку. */
+    cards.forEach(function(card){
+      card.addEventListener('pointerenter', function(){
+        grid.classList.add('has-card-hover');
+      });
+      card.addEventListener('pointerleave', function(){
+        grid.classList.remove('has-card-hover');
+      });
+    });
+    grid.addEventListener('pointerleave', function(){
+      grid.classList.remove('has-card-hover');
+    });
+
+    // reveal-стаггер карточек при скролле
+    var cio = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); cio.unobserve(e.target); } });
+    }, {threshold:0.12, rootMargin:'0px 0px -6% 0px'});
+    cards.forEach(function(card,i){ card.style.transitionDelay = ((i % 6) * 0.09) + 's'; cio.observe(card); });
+    if (reduce) cards.forEach(function(c){ c.classList.add('in'); });
+    setTimeout(function(){ cards.forEach(function(c){ c.classList.add('in'); }); }, 4200); // failsafe
+    var curFilter = 'все', curQuery = '';
+    function applyFilter(){
+      cards.forEach(function(card){
+        var okTag = (curFilter === 'все') || (card.getAttribute('data-tag') === curFilter);
+        var okText = !curQuery || card.getAttribute('data-text').indexOf(curQuery) > -1;
+        card.classList.toggle('hidden', !(okTag && okText));
+      });
+    }
+    var filters = document.getElementById('arcFilters');
+    filters.addEventListener('click', function(e){
+      var b = e.target.closest('.arc-filter'); if (!b) return;
+      curFilter = b.getAttribute('data-f');
+      filters.querySelectorAll('.arc-filter').forEach(function(f){ f.setAttribute('aria-pressed', f === b ? 'true' : 'false'); });
+      applyFilter();
+    });
+    var search = document.getElementById('arcSearch');
+    search.addEventListener('input', function(){ curQuery = search.value.trim().toLowerCase(); applyFilter(); });
+
+    /* --- модалка карточки --- */
+    var CAT = {'место':'Место','люди':'Люди','объект':'Объект','природа':'Природа'};
+    var DETAIL = {
+      1: {desc:'Бабочка с белыми крыльями\nлетит над полем.\nВсё очень тихо и светло.\nПочти ничего не чувствую,\nкроме лёгкости.',
+        moods:['спокойное','светлое','лёгкое'],
+        note:'Тонкий отпечаток сна,\nпочти растворившийся при пробуждении.',
+        meta:{'Настроение':'Спокойное, светлое','Категория':'Природа','Сохранность':'31–60%','Тип сна':'Фрагмент','Период':'Сегодня, 03:14','Длительность':'≈ 18 секунд','Место':'Неизвестно'}},
+      2: {desc:'Белые цветы тянутся до края.\nТропа исчезает под ногами.\nКаждый шаг начинается заново,\nбудто поле не хочет отпускать.',
+        moods:['тихое','зыбкое'],
+        note:'Дорога, которую невозможно запомнить.',
+        meta:{'Настроение':'Тихое, зыбкое','Категория':'Природа','Сохранность':'41–70%','Тип сна':'Фрагмент','Период':'Сегодня, 05:20','Длительность':'≈ 25 секунд','Место':'Поле'}},
+      3: {desc:'Голос звучит совсем рядом.\nЯ оборачиваюсь на имя.\nНо фигура растворяется в тумане\nраньше, чем я успеваю ответить.',
+        moods:['тревожное','нежное'],
+        note:'Кто-то звал меня тем,\nкем я почти был.',
+        meta:{'Настроение':'Тревожное, тёплое','Категория':'Люди','Сохранность':'21–50%','Тип сна':'Обрывок','Период':'Ночь, 02:48','Длительность':'≈ 12 секунд','Место':'Туман'}},
+      4: {desc:'Свет появляется там,\nгде нет берега.\nОн ищет кого-то в темноте\nи не находит.',
+        moods:['одинокое','ясное'],
+        note:'Огонь, светящий в пустоту.',
+        meta:{'Настроение':'Одинокое','Категория':'Место','Сохранность':'51–80%','Тип сна':'Сон','Период':'Сегодня, 04:10','Длительность':'≈ 30 секунд','Место':'Море'}},
+      5: {desc:'Озеро неподвижно,\nсловно зеркало.\nВ отражении небо\nвыглядит другим.',
+        moods:['спокойное','глубокое'],
+        note:'Отражение, которому\nне хочется верить.',
+        meta:{'Настроение':'Спокойное, глубокое','Категория':'Природа','Сохранность':'61–90%','Тип сна':'Фрагмент','Период':'Утро, 06:02','Длительность':'≈ 22 секунды','Место':'Озеро'}},
+      6: {desc:'Они медленно движутся\nбез ветра.\nКажется, кто-то\nтолько что ушёл.',
+        moods:['грустное','зыбкое'],
+        note:'Движение, оставшееся\nпосле кого-то.',
+        meta:{'Настроение':'Грустное','Категория':'Объект','Сохранность':'31–60%','Тип сна':'Обрывок','Период':'Вечер, 21:14','Длительность':'≈ 15 секунд','Место':'Двор'}},
+      7: {desc:'Свет проходит\nсквозь тонкие занавески.\nСтул у окна\nбудто кого-то ждёт.',
+        moods:['тёплое','пустое'],
+        note:'Комната, которая помнит\nбольше меня.',
+        meta:{'Настроение':'Тёплое, тихое','Категория':'Место','Сохранность':'51–80%','Тип сна':'Сон','Период':'День, 14:30','Длительность':'≈ 28 секунд','Место':'Дом'}},
+      8: {desc:'За матовой поверхностью\nпроступает тёмный силуэт.\nОн знаком мне,\nно я не могу вспомнить лицо.',
+        moods:['тревожное','холодное'],
+        note:'Кто-то по ту сторону,\nкого не разглядеть.',
+        meta:{'Настроение':'Тревожное','Категория':'Люди','Сохранность':'21–50%','Тип сна':'Фрагмент','Период':'Ночь, 03:05','Длительность':'≈ 14 секунд','Место':'Неизвестно'}},
+      9: {desc:'Луна почти исчезает.\nСвет растворяется в тумане.\nОстаётся только\nбледное пятно на небе.',
+        moods:['тихое','холодное'],
+        note:'Свет, который\nвот-вот погаснет.',
+        meta:{'Настроение':'Тихое','Категория':'Объект','Сохранность':'41–70%','Тип сна':'Обрывок','Период':'Ночь, 01:37','Длительность':'≈ 10 секунд','Место':'Небо'}},
+      10:{desc:'Деревья меняют места.\nТропа ведёт иначе,\nчем вела минуту назад.\nЛес дышит вокруг меня.',
+        moods:['странное','живое'],
+        note:'Место, которое\nне стоит на месте.',
+        meta:{'Настроение':'Странное','Категория':'Природа','Сохранность':'31–60%','Тип сна':'Сон','Период':'Сегодня, 04:55','Длительность':'≈ 33 секунды','Место':'Лес'}},
+      11:{desc:'Одинокая фигура\nстоит на склоне.\nЯ иду к ней,\nно расстояние не меняется.',
+        moods:['одинокое','тревожное'],
+        note:'Тот, к кому невозможно\nприблизиться.',
+        meta:{'Настроение':'Одинокое','Категория':'Люди','Сохранность':'21–50%','Тип сна':'Фрагмент','Период':'Вечер, 20:40','Длительность':'≈ 18 секунд','Место':'Холм'}},
+      12:{desc:'Город проступает в тумане.\nОгни дрожат на горизонте.\nЯ иду к нему всю ночь,\nно так и не приближаюсь.',
+        moods:['тоскливое','зыбкое'],
+        note:'Место, до которого\nне добраться.',
+        meta:{'Настроение':'Тоскливое','Категория':'Место','Сохранность':'31–60%','Тип сна':'Сон','Период':'Ночь, 02:15','Длительность':'≈ 24 секунды','Место':'Горизонт'}}
+    };
+    var modal=document.getElementById('modal');
+    var mImg=document.getElementById('modalImg'), mEye=document.getElementById('modalEyebrow'),
+        mTitle=document.getElementById('modalTitle'), mDesc=document.getElementById('modalDesc'),
+        mMoods=document.getElementById('modalMoods'), mNote=document.getElementById('modalNote'),
+        mMeta=document.getElementById('modalMeta'), mRelated=document.getElementById('modalRelated'),
+        mNext=document.getElementById('modalNext');
+    var curCard=0;
+    function fillModal(i){
+      curCard=i; var c=CARDS[i], idx=i+1, det=DETAIL[idx]||{};
+      mImg.style.backgroundImage='url("карточки/'+idx+'.webp")';
+      mEye.textContent=c.n+' / фрагмент';
+      mTitle.textContent=c.t;
+      mDesc.textContent=det.desc||c.d;
+      mMoods.innerHTML=(det.moods||[]).map(function(m){return '<span class="modal__mood">'+m+'</span>';}).join('');
+      mNote.textContent=det.note||'';
+      var meta=det.meta||{'Категория':(CAT[c.tag]||c.tag),'Тип сна':'Фрагмент','Сохранность':'—','Место':'Неизвестно'};
+      mMeta.innerHTML=Object.keys(meta).map(function(k){return '<dt>'+k+'</dt><dd>'+meta[k]+'</dd>';}).join('');
+      var rel=[]; for(var k=1;k<=3;k++){ rel.push((i+k)%CARDS.length); }
+      mRelated.innerHTML=rel.map(function(ri){return '<div class="r" data-ri="'+ri+'" style=\'background-image:url("карточки/'+(ri+1)+'.webp")\'></div>';}).join('');
+      modal.scrollTop=0; var p=modal.querySelector('.modal__panel'); if(p) p.scrollTop=0;
+    }
+    var lastFocused=null;
+    function focusables(el){ return el.querySelectorAll('a[href],button,input,textarea,select,[tabindex]:not([tabindex="-1"])'); }
+    function openModal(i){
+      lastFocused=document.activeElement;
+      fillModal(i); modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden';
+      var f=focusables(modal); if(f.length) f[0].focus();
+    }
+    function closeModal(){
+      modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow='';
+      if(lastFocused && lastFocused.focus) lastFocused.focus();
+    }
+    modal.addEventListener('keydown', function(e){
+      if(e.key!=='Tab') return;
+      var f=focusables(modal); if(!f.length) return;
+      var first=f[0], last=f[f.length-1];
+      if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+    });
+    cards.forEach(function(card,i){
+      card.style.cursor='pointer';
+      card.setAttribute('role','button');
+      card.setAttribute('tabindex','0');
+      card.setAttribute('aria-label', CARDS[i].n + ' ' + CARDS[i].t);
+      card.addEventListener('click', function(){ openModal(i); });
+      card.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openModal(i); } });
+    });
+    modal.addEventListener('click', function(e){
+      if(e.target.closest('[data-close]')){ closeModal(); return; }
+      var r=e.target.closest('.r'); if(r) openModal(+r.getAttribute('data-ri'));
+    });
+    mNext.addEventListener('click', function(){ openModal((curCard+1)%CARDS.length); });
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeModal(); });
+  }
+
+  /* ---------- ЛАБОРАТОРИЯ (визард восстановления сна, inline) ---------- */
+  var lab=document.getElementById('lab');
+  if(lab){
+    var labLeft=document.getElementById('labLeft'), labVisual=document.getElementById('labVisual'),
+        labIndex=document.getElementById('labIndex');
+    var bars=''; for(var wi=0; wi<56; wi++){ var hh=6+Math.round(Math.abs(Math.sin(wi*0.7))*22 + (wi%3)*3); bars+='<line x1="'+(wi*7+4)+'" y1="'+(17-hh/2)+'" x2="'+(wi*7+4)+'" y2="'+(17+hh/2)+'" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'; }
+    var WAVE='<svg class="wave" viewBox="0 0 400 34" preserveAspectRatio="none" fill="none">'+bars+'</svg>';
+    var MIC='<svg class="mic" viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+    function f_ta(ph){ return '<div class="lab-field"><textarea class="lab-textarea" placeholder="'+ph+'"></textarea></div>'; }
+    function f_in(ph){ return '<div class="lab-field"><input class="lab-text" type="text" placeholder="'+ph+'" /></div>'; }
+    function f_voice(){ return '<div class="lab-field"><div class="lab-hint">или запишите голосом</div><div class="lab-voice">'+WAVE+MIC+'</div></div>'; }
+    function f_chips(a){ return '<div class="lab-field"><div class="lab-chips">'+a.map(function(c){return '<button class="lab-chip" type="button">'+c+'</button>';}).join('')+'</div></div>'; }
+    function nextBtn(l){ return '<button class="lab-cta" type="button" data-labnext>'+l+' <span>&rarr;</span></button>'; }
+    var VIS={1:'url("Лаб/1.webp")',2:'url("Лаб/2.webp")',3:'url("Лаб/3.webp")',4:'url("Лаб/4.webp")',5:'url("Лаб/5.webp")',6:'url("Лаб/6.webp")',7:'url("Лаб/6.webp")'};
+    var labVisA=document.getElementById('labVisA'), labVisB=document.getElementById('labVisB'), labVisCap=document.getElementById('labVisCap');
+    var visActive='b';
+    function setVisual(url){
+      var inc = (visActive==='a') ? labVisB : labVisA;
+      var out = (visActive==='a') ? labVisA : labVisB;
+      inc.style.backgroundImage=url; inc.classList.add('on'); out.classList.remove('on');
+      visActive = (visActive==='a') ? 'b' : 'a';
+    }
+    var STEPS=[
+      {i:'', t:'laboratory', s:'Ритуал восстановления сна.\nОтветьте на несколько вопросов — и система соберёт архивную карточку из ваших фрагментов.',
+        body:'<div class="lab-actions">'+nextBtn('начать восстановление')+'</div>',
+        f:'', vis:1, back:false, isIntro:true},
+      {i:'01 / 06', t:'Что осталось\nпосле пробуждения?', s:'Опишите первый образ, который\nудержался в памяти.',
+        body:f_ta('Например: свет, вода, лодка, чей-то голос...')+f_voice()+'<div class="lab-actions">'+nextBtn('продолжить')+'</div>',
+        f:'Фрагмент сохранится только\nпосле завершения.', vis:1, back:true},
+      {i:'02 / 06', t:'Где это\nпроисходило?', s:'Назовите место, пространство\nили ощущение пространства.',
+        body:f_in('Например: берег, туманное озеро, пустая комната...')+f_chips(['на улице','в доме','в воде','непонятно'])+f_voice()+'<div class="lab-actions">'+nextBtn('продолжить')+'</div>',
+        f:'Образ станет яснее,\nкогда появятся детали.', vis:2, back:true},
+      {i:'03 / 06', t:'Кто или что\nбыло рядом?', s:'Иногда память удерживает\nне сюжет, а спутников сна.',
+        body:f_ta('Лодка, свет, птица, чей-то силуэт, ветер...')+f_chips(['человек','животное','объект','свет'])+f_voice()+'<div class="lab-actions">'+nextBtn('продолжить')+'</div>',
+        f:'Каждый ответ\nвосстанавливает контур сна.', vis:3, back:true},
+      {i:'04 / 06', t:'Какое чувство\nосталось?', s:'Эмоция может помнить больше,\nчем образ.',
+        body:f_chips(['спокойствие','тоска','нежность','одиночество','удивление','страх','непонятно'])+'<div class="lab-field"><div class="lab-hint">интенсивность: слабое — сильное</div><input class="lab-range" type="range" min="0" max="100" value="52" /></div><div class="lab-actions">'+nextBtn('продолжить')+'</div>',
+        f:'Сохранность фрагмента повышается.', vis:4, back:true},
+      {i:'05 / 06', t:'Есть ли звук,\nслово или движение?', s:'Последний след иногда хранится\nв голосе, ритме или жесте.',
+        body:f_ta('Например: плеск воды, тишина, медленно плывёт...')+f_voice()+'<div class="lab-field"><div class="lab-prog-label">сохранность фрагмента</div><div class="lab-prog"><div class="bar"><span style="width:72%"></span></div><div class="pct">72%</div></div></div><div class="lab-actions">'+nextBtn('завершить')+'</div>',
+        f:'После завершения система\nсоберёт карточку сна.', vis:5, back:true},
+      {i:'06 / 06', t:'Фрагмент\nготов', s:'Система собрала архивную карточку\nна основе ваших ответов.',
+        body:'<div class="lab-field"><div class="lab-label">название</div><input class="lab-text" type="text" placeholder="название фрагмента" /></div><div class="lab-field"><div class="lab-prog-label">сохранность: <span class="lab-strong">72%</span></div></div><div class="lab-checks"><label class="lab-check"><input type="checkbox" /> личный архив</label><label class="lab-check"><input type="checkbox" /> опубликовать анонимно</label></div><div class="lab-actions">'+nextBtn('сохранить фрагмент')+'<button class="lab-cta--ghost" type="button" data-labrestart>пересобрать <span>&#8635;</span></button></div>',
+        f:'', vis:6, back:false},
+      {i:'', t:'Фрагмент\nсохранён', s:'Сон растворяется, а в архиве\nостаётся только его след.',
+        body:'<p class="lab-sub" style="margin:0 0 30px">Фрагмент сохранён в личный архив.</p><div class="lab-actions lab-actions--row"><button class="lab-cta" type="button" data-labnav="archive">перейти в архив <span>&rarr;</span></button><button class="lab-cta--ghost" type="button" data-labrestart>добавить ещё фрагмент</button></div>',
+        f:'', vis:7, back:false}
+    ];
+    var cur=0;
+    function render(i, instant){
+      cur=i; var st=STEPS[i];
+      // текст слева — мгновенно, без анимации; изображение справа — растворение через setVisual
+      labIndex.textContent=st.i||''; labIndex.style.visibility=st.i?'visible':'hidden';
+      setVisual(VIS[st.vis]);
+      labVisCap.innerHTML=(st.caption?'<div class="lab-caption">'+st.caption+'</div>':'')+(st.capnum?'<div class="lab-capnum">'+st.capnum+'</div>':'');
+      labLeft.innerHTML=(st.back?'<button class="lab-back-btn" type="button" data-labback>&larr; назад</button>':'')+'<h2 class="lab-title'+(st.isIntro?' is-intro':'')+'">'+st.t+'</h2><p class="lab-sub">'+st.s+'</p>'+st.body+(st.f?'<p class="lab-footer">'+st.f+'</p>':'');
+    }
+    function openLab(){ render(0,true); var labEl=document.getElementById('lab'); if(labEl) labEl.scrollIntoView({behavior:reduce?'auto':'smooth', block:'start'}); }
+    lab.addEventListener('click', function(e){
+      var chip=e.target.closest('.lab-chip');
+      if(chip){ chip.parentElement.querySelectorAll('.lab-chip').forEach(function(x){x.classList.remove('active');}); chip.classList.add('active'); return; }
+      var navEl=e.target.closest('[data-labnav]');
+      if(navEl){
+        var n=navEl.getAttribute('data-labnav');
+        if(n==='home'){ scrollTo({top:0,behavior:reduce?'auto':'smooth'}); }
+        else if(n==='archive'){ var el=document.getElementById('archive'); if(el) el.scrollIntoView({behavior:reduce?'auto':'smooth'}); }
+        else if(n==='worklog'){ location.href='worklog.html'; }
+        else if(n==='lab'){ render(0); }
+        return;
+      }
+      if(e.target.closest('[data-labrestart]')){ render(0); return; }
+      if(e.target.closest('[data-labback]')){ if(cur>0) render(cur-1); return; }
+      if(e.target.closest('[data-labnext]')){
+        var alignAfterIntro = cur === 0;
+        if(cur<STEPS.length-1) render(cur+1);
+        if(alignAfterIntro){
+          requestAnimationFrame(function(){
+            requestAnimationFrame(function(){
+              var stage = document.querySelector('.lab-stage');
+              if(stage) stage.scrollIntoView({behavior:reduce?'auto':'smooth', block:'end'});
+            });
+          });
+        }
+        return;
+      }
+    });
+    var addBtn=document.querySelector('.arc-cta'); if(addBtn) addBtn.addEventListener('click', function(){ openLab(); });
+    /* инициализация визарда на старте */
+    render(0,true);
+  }
+
+  /* ---------- курсор-след не блюрит интерактив ---------- */
+  var UI_SEL = 'button, a, input, textarea, select, p, h1, h2, h3, h4, span, label, blockquote, li';
+  document.addEventListener('pointerover', function(e){
+    if (!e.target.closest) return;
+
+    /* На заголовке Sleep Amnesia цветной размытый курсор остаётся включённым. */
+    if (e.target.closest('#wordmark')) {
+      document.body.classList.remove('ui-hover');
+      return;
+    }
+
+    if (e.target.closest(UI_SEL)) document.body.classList.add('ui-hover');
+  });
+  document.addEventListener('pointerout', function(e){
+    if (!e.target.closest) return;
+
+    if (e.target.closest('#wordmark')) {
+      var wordmarkTarget = e.relatedTarget && e.relatedTarget.closest
+        ? e.relatedTarget.closest('#wordmark')
+        : null;
+      if (!wordmarkTarget) document.body.classList.remove('ui-hover');
+      return;
+    }
+
+    if (!e.target.closest(UI_SEL)) return;
+    var to = e.relatedTarget;
+    if (to && to.closest && to.closest(UI_SEL) && !to.closest('#wordmark')) return;
+    document.body.classList.remove('ui-hover');
+  });
+})();
+</script>
+</body>
+</html>

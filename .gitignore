@@ -1,0 +1,14 @@
+# source/reference images (72MB, not needed by the site)
+_source/
+
+# dev screenshots
+final_screenshot_with_text.png
+final_state_80percent.png
+initial_state.png
+scroll_50percent.png
+scroll_75percent.png
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
