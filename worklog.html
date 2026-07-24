@@ -41,7 +41,9 @@ a{color:inherit;text-decoration:none}
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
 .topbar{position:fixed; top:0; left:0; right:0; z-index:50; display:flex; align-items:center; justify-content:space-between;
-  padding:26px var(--gutter); font-family:var(--mono); font-size:clamp(13px,1.4vw,20px); letter-spacing:-.02em; color:var(--ink)}
+  padding:26px var(--gutter); font-family:var(--mono); font-size:clamp(13px,1.4vw,20px); letter-spacing:-.02em; color:var(--ink);
+  -webkit-backdrop-filter:blur(10px) saturate(1.1); backdrop-filter:blur(10px) saturate(1.1);
+  background:rgba(233,232,229,.55); transition:background .4s ease, -webkit-backdrop-filter .4s ease, backdrop-filter .4s ease}
 .topbar .brand{opacity:.5; letter-spacing:.04em}
 .topbar nav{display:flex; gap:clamp(22px,4vw,60px); position:absolute; left:50%; transform:translateX(-50%)}
 .topbar nav a{position:relative; opacity:.85; transition:opacity .3s; cursor:pointer}
@@ -297,7 +299,11 @@ a{color:inherit;text-decoration:none}
 • между блоками Архив и Лаборатория оставалась полоса-разделитель → убрала border-top.
 • градиент фона Архива не по макету → поправила на #EEEFEC → #E7E4E3.
 • кегль шагов 01/02/03 был 32px → уменьшен до 20px, отступ между блоками шагов — 60px.
-• длинная строка стиха «забытые образы выходят из кокона памяти» ломала ритм → перенесла «выходят из кокона памяти» на новую строку.</div>
+• длинная строка стиха «забытые образы выходят из кокона памяти» ломала ритм → перенесла «выходят из кокона памяти» на новую строку.
+• после ФОН 3 и финального текста hero воспроизводился сначала вместо перехода к Архиву → добавила флаг heroReleasedAt: после прямого release ре-engage только назад, после обратного — только вперёд.
+• «Получите архивный фрагмент» шло в одну строку → перенос «фрагмент» на новую строку.
+• заголовок лаборатории и подзаголовок появлялись резко → добавлен эффект появления из растворения (blur + opacity + scale).
+• в навигации worklog «лаборатория» вела на главную → починена ссылка на index.html#lab.</div>
           </div>
           <div class="wl-field wl-field--full">
             <span class="wl-k">слабые места → как исправила</span>
