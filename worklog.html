@@ -52,12 +52,18 @@ a{color:inherit;text-decoration:none}
 .topbar nav a.is-current::after{right:0}
 .topbar .back{font:inherit; color:var(--muted); background:none; border:none; cursor:pointer; letter-spacing:-.02em; transition:color .3s; padding:0}
 .topbar .back:hover{color:var(--ink)}
+.topbar .sound{
+  opacity:.85; background:none; border:none; font:inherit; color:inherit;
+  letter-spacing:-.02em; cursor:pointer; padding:0; transition:opacity .3s
+}
+.topbar .sound:hover{opacity:1}
+.topbar .sound.is-on{opacity:1}
 @media (max-width:640px){ .topbar nav{gap:14px} .topbar .back{display:none} }
 
 .wrap{max-width:1080px; margin:0 auto; padding:clamp(120px,16vw,180px) var(--gutter) clamp(80px,10vw,140px)}
 
 .wl-eyebrow{font-family:var(--mono); font-size:13px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 18px}
-.wl-title{font-family:var(--display); font-weight:400; font-size:clamp(46px,9vw,120px); letter-spacing:-.03em; line-height:.9; margin:0; color:var(--ink); text-transform:uppercase}
+.wl-title{font-family:var(--display); font-weight:400; font-size:clamp(46px,9vw,120px); letter-spacing:-.03em; line-height:.9; margin:0; color:var(--ink); text-transform:none}
 .wl-sub{font-family:var(--mono); font-size:clamp(14px,1.4vw,18px); letter-spacing:-.02em; line-height:1.5; color:var(--ink); margin:22px 0 0; max-width:680px; white-space:pre-line}
 
 .wl-stack-block{margin:34px 0 0; display:grid; grid-template-columns:1fr 1fr; gap:18px 40px; padding:24px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
@@ -81,9 +87,19 @@ a{color:inherit;text-decoration:none}
 .wl-weak{background:rgba(30,30,28,.04); border:1px solid var(--line); border-radius:6px; padding:14px 16px; margin-top:6px; font-family:var(--mono); font-size:13px; line-height:1.55; letter-spacing:-.01em; color:var(--ink); white-space:pre-line}
 .wl-weak .lbl{display:block; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px}
 .wl-prompts{display:flex; flex-direction:column; gap:10px; margin-top:6px}
-.wl-prompt{font-family:var(--mono); font-size:12.5px; line-height:1.6; letter-spacing:-.01em; color:var(--ink); white-space:pre-wrap; background:rgba(30,30,28,.04); border-left:2px solid var(--line); padding:12px 16px; word-break:break-word}
+.wl-prompt{position:relative; font-family:var(--mono); font-size:12.5px; line-height:1.6; letter-spacing:-.01em; color:var(--ink); white-space:pre-wrap; background:rgba(30,30,28,.04); border-left:2px solid var(--line); padding:12px 16px; word-break:break-word}
 .wl-prompt__tag{display:block; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px}
 .wl-prompt__note{display:block; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-style:italic}
+.wl-copy{
+  position:absolute; top:8px; right:8px; font-family:var(--mono); font-size:10px;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+  background:var(--bg); border:1px solid var(--line); border-radius:5px;
+  padding:5px 10px; cursor:pointer; transition:color .2s, border-color .2s, background .2s;
+  display:inline-flex; align-items:center; gap:5px; line-height:1
+}
+.wl-copy:hover{color:var(--ink); border-color:var(--ink)}
+.wl-copy.is-copied{color:var(--bg); background:var(--ink); border-color:var(--ink)}
+@media (max-width:640px){ .wl-copy{top:6px; right:6px} }
 @media (max-width:760px){ .wl-grid{grid-template-columns:1fr; gap:14px} .wl-item{grid-template-columns:1fr; gap:14px} }
 
 .wl-foot{margin:clamp(56px,7vw,88px) 0 0; font-family:var(--mono); font-size:13px; letter-spacing:-.02em; color:var(--muted); line-height:1.7}
@@ -104,6 +120,7 @@ a{color:inherit;text-decoration:none}
 <body>
 
 <div class="grain" aria-hidden="true"></div>
+<audio id="bgm" src="Муззыка.mp3" loop preload="auto"></audio>
 
 <header class="topbar">
   <button class="back" type="button" onclick="location.href='index.html'">← на главную</button>
@@ -113,12 +130,12 @@ a{color:inherit;text-decoration:none}
     <a href="index.html#lab">лаборатория</a>
     <a class="is-current" href="worklog.html">worklog</a>
   </nav>
-  <span class="brand">SA</span>
+  <button class="sound" id="sound" type="button" aria-pressed="false">sound: off</button>
 </header>
 
 <main class="wrap">
   <p class="wl-eyebrow reveal">Тестовое задание · AI-first Web Designer</p>
-  <h1 class="wl-title reveal">AI Worklog</h1>
+  <h1 class="wl-title reveal">AI worklog</h1>
   <p class="wl-sub reveal reveal-d1">Живой лог сборки лендинга Sleep Amnesia —
 где работал AI, где — мои решения и руки,
 какие слабые места нашлись и как проверяли финал.</p>
@@ -309,6 +326,76 @@ a{color:inherit;text-decoration:none}
   document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
   if (reduce) document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
   setTimeout(function(){ document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); }); }, 2600);
+
+  /* ---------- звук (общий с лендингом, localStorage) ---------- */
+  var bgm = document.getElementById('bgm');
+  if (bgm) bgm.volume = 0.5;
+  var soundOn = true;
+  try { var _s = localStorage.getItem('sa-sound'); if (_s !== null) soundOn = _s === '1'; } catch (e) {}
+  var soundBtn = document.getElementById('sound');
+  function applySound(){
+    if (soundBtn) {
+      soundBtn.textContent = 'sound: ' + (soundOn ? 'on' : 'off');
+      soundBtn.classList.toggle('is-on', soundOn);
+      soundBtn.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
+    }
+    if (!bgm) return;
+    if (soundOn) { bgm.play().catch(function(){}); } else { bgm.pause(); }
+  }
+  applySound();
+  if (soundBtn) soundBtn.addEventListener('click', function(){
+    soundOn = !soundOn; applySound();
+    try { localStorage.setItem('sa-sound', soundOn ? '1' : '0'); } catch (e2) {}
+  });
+  function firstPlay(){
+    if (soundOn && bgm) bgm.play().catch(function(){});
+    removeEventListener('pointerdown', firstPlay); removeEventListener('wheel', firstPlay); removeEventListener('keydown', firstPlay);
+  }
+  addEventListener('pointerdown', firstPlay);
+  addEventListener('wheel', firstPlay, { passive: true });
+  addEventListener('keydown', firstPlay);
+
+  /* ---------- кнопка копирования промтов ---------- */
+  function getPromptText(node){
+    var clone = node.cloneNode(true);
+    var btn = clone.querySelector('.wl-copy');
+    if (btn) btn.remove();
+    var notes = clone.querySelectorAll('.wl-prompt__tag, .wl-prompt__note');
+    notes.forEach(function(n){ n.remove(); });
+    return clone.textContent.replace(/^\s+|\s+$/g, '');
+  }
+  function showCopied(btn){
+    btn.classList.add('is-copied');
+    var orig = btn.getAttribute('data-label') || 'copy';
+    btn.textContent = '✓ ' + orig;
+    setTimeout(function(){
+      btn.classList.remove('is-copied');
+      btn.textContent = orig;
+    }, 1400);
+  }
+  document.querySelectorAll('.wl-prompt').forEach(function(p){
+    var btn = document.createElement('button');
+    btn.className = 'wl-copy';
+    btn.type = 'button';
+    btn.setAttribute('data-label', 'copy');
+    btn.textContent = 'copy';
+    btn.setAttribute('aria-label', 'Скопировать промт');
+    btn.addEventListener('click', function(){
+      var text = getPromptText(p);
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function(){ showCopied(btn); }).catch(function(){ fallbackCopy(text, btn); });
+      } else { fallbackCopy(text, btn); }
+    });
+    p.appendChild(btn);
+  });
+  function fallbackCopy(text, btn){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); showCopied(btn); } catch (e) {}
+    document.body.removeChild(ta);
+  }
 })();
 </script>
 </body>
