@@ -80,6 +80,10 @@ a{color:inherit;text-decoration:none}
 .wl-v .fix{color:var(--muted)}
 .wl-weak{background:rgba(30,30,28,.04); border:1px solid var(--line); border-radius:6px; padding:14px 16px; margin-top:6px; font-family:var(--mono); font-size:13px; line-height:1.55; letter-spacing:-.01em; color:var(--ink); white-space:pre-line}
 .wl-weak .lbl{display:block; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px}
+.wl-prompts{display:flex; flex-direction:column; gap:10px; margin-top:6px}
+.wl-prompt{font-family:var(--mono); font-size:12.5px; line-height:1.6; letter-spacing:-.01em; color:var(--ink); white-space:pre-wrap; background:rgba(30,30,28,.04); border-left:2px solid var(--line); padding:12px 16px; word-break:break-word}
+.wl-prompt__tag{display:block; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px}
+.wl-prompt__note{display:block; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-style:italic}
 @media (max-width:760px){ .wl-grid{grid-template-columns:1fr; gap:14px} .wl-item{grid-template-columns:1fr; gap:14px} }
 
 .wl-foot{margin:clamp(56px,7vw,88px) 0 0; font-family:var(--mono); font-size:13px; letter-spacing:-.02em; color:var(--muted); line-height:1.7}
@@ -122,7 +126,7 @@ a{color:inherit;text-decoration:none}
   <div class="wl-stack-block reveal reveal-d1">
     <div class="wl-stack-row"><span class="k">нейросети и AI-инструменты</span><span class="v">ChatGPT 5.6 · Recraft · Kling 3.0 · Suno · Claude Code · GLM 5.2</span></div>
     <div class="wl-stack-row"><span class="k">стек</span><span class="v">HTML / CSS / Vanilla JS (single file) · Vercel</span></div>
-    <div class="wl-stack-row"><span class="k">харнесс</span><span class="v">Claude Code (CLI) · Tempo MCP · ChatGPT (deep research) · Recraft web · Kling 3.0 web · Suno web</span></div>
+    <div class="wl-stack-row"><span class="k">харнесс</span><span class="v">Claude Code (CLI) · Tempo MCP · скилы: Claude SEO, Context mode, Superpowers, UI/UX pro max, Taste skill, Content system (georgii rivera), Design · ChatGPT (deep research) · Recraft web · Kling 3.0 web · Suno web</span></div>
     <div class="wl-stack-row"><span class="k">сценарий</span><span class="v">Вариант 1 — «Архив потерянных снов»</span></div>
   </div>
 
@@ -140,6 +144,15 @@ a{color:inherit;text-decoration:none}
           <div class="wl-field"><span class="wl-k">решения сама</span><span class="wl-v">выбрала направление, отсев эзотерики, тон приземлённо-поэтичный и честный про неопределённость, держание небольшого scope</span></div>
           <div class="wl-field"><span class="wl-k">доработала руками</span><span class="wl-v">рабочий язык «не потерять сон» вместо магии, тексты 12 снов, названия и настроения</span></div>
           <div class="wl-field"><span class="wl-k">проверка</span><span class="wl-v">сверка с брифом, насмотренность, отсев «красивого хаоса»</span></div>
+          <div class="wl-field wl-field--full">
+            <span class="wl-k">промты · ChatGPT deep research (настроенный агент-исследователь)</span>
+            <div class="wl-prompts">
+              <div class="wl-prompt"><span class="wl-prompt__tag">нейронаука · психоанализ</span>Проведи глубокое исследование, что сейчас известно по поводу снов, какие легенды, выводы научные есть по поводу того что сниться и что значит в психоанализе, какие есть исследования, что вообще такое сон? @Глубокое исследование</div>
+              <div class="wl-prompt"><span class="wl-prompt__tag">арт-референсы</span>@Глубокое исследование Изучи тему сновидений в искусстве, в картинах, фотографии, литературе и другое</div>
+              <div class="wl-prompt"><span class="wl-prompt__tag">эксперименты</span>@Глубокое исследование Какие эксперименты проводились со сном, особенное внимание удели странным или спорным</div>
+              <div class="wl-prompt"><span class="wl-prompt__tag">конкуренты</span>Изучи какие есть потенциальные конкуренты этого продукта и выкати мне список сайтов и приложений @Глубокое исследование</div>
+            </div>
+          </div>
           <div class="wl-field wl-field--full">
             <span class="wl-k">слабые места → как исправила</span>
             <div class="wl-weak"><span class="lbl">починено</span>концепт рисковал скатиться в «красивый хаос» → заострила на «архиве неполного восстановления», science-grounded; тон уводил в эзотерику → перевела в приземлённый язык на основе ресёрча реальных отзывов ЦА.</div>
@@ -161,6 +174,12 @@ a{color:inherit;text-decoration:none}
           <div class="wl-field"><span class="wl-k">доработала руками</span><span class="wl-v">кроп, переименование, конвертация PNG→WebP, попадание в настроение сна</span></div>
           <div class="wl-field"><span class="wl-k">проверка</span><span class="wl-v">читаемость в превью, переключение ч/б↔цвет по hover, 200 в Network</span></div>
           <div class="wl-field wl-field--full">
+            <span class="wl-k">промт · Recraft</span>
+            <div class="wl-prompts">
+              <div class="wl-prompt"><span class="wl-prompt__note">в промт прикреплены собственные фотографии как референс</span>A single white butterfly in flight, positioned on the far left side of the frame, flying toward the right, photorealistic analog film photography, pure white seamless background, extreme negative space, monochrome black and white, high-key lighting, very large coarse film grain covering the entire image, soft blooming highlights, subtle glow around the butterfly, slightly soft focus with preserved wing details, delicate motion blur on the wings, realistic butterfly anatomy, quiet, airy, peaceful, minimalistic fine art photography, vintage medium format film, overexposed whites, subtle lens imperfections, museum-quality photograph, emotional silence, no illustration, no CGI, no 3D render, no surrealism.</div>
+            </div>
+          </div>
+          <div class="wl-field wl-field--full">
             <span class="wl-k">слабые места → как исправила</span>
             <div class="wl-weak"><span class="lbl">починено</span>разрозненный стиль между 24 кадрами → единый стиль-гайд + ручной отбор; вес PNG ~66 МБ → пережаты в WebP (~1 МБ, −98%), оригиналы уведены в _source/ и исключены из деплоя.</div>
           </div>
@@ -180,6 +199,12 @@ a{color:inherit;text-decoration:none}
           <div class="wl-field"><span class="wl-k">решения сама</span><span class="wl-v">длина 5 секунд (не петля), обрезка, наложение multiply на типографику</span></div>
           <div class="wl-field"><span class="wl-k">доработала руками</span><span class="wl-v">интеграция в scroll-scrub, mix-blend-mode:multiply, лерп currentTime для ровного полёта</span></div>
           <div class="wl-field"><span class="wl-k">проверка</span><span class="wl-v">ровный полёт при ступенчатом скролле, наложение на текст, вес файла</span></div>
+          <div class="wl-field wl-field--full">
+            <span class="wl-k">промт · Kling 3.0</span>
+            <div class="wl-prompts">
+              <div class="wl-prompt">Camera Locked, A delicate butterfly slowly emerges from the cocoon with soft, natural movements. The cocoon gently opens, the butterfly carefully unfolds its wings and rests for a moment. Calm poetic transformation, no horror, no body distortion, soft monochrome film texture with subtle pastel tones, locked static camera, preserve the original composition.</div>
+            </div>
+          </div>
           <div class="wl-field wl-field--full">
             <span class="wl-k">слабые места → как исправила</span>
             <div class="wl-weak"><span class="lbl">починено</span>скраб дёргался (сики копились) → guard !video.seeking + порог 0.03; первый кадр торчал пятном → opacity:0 на старте, ramp по curP; программный scrollTo не эмитит scroll → переписала скраб на rAF-тикер, читающий scrollY напрямую.</div>
@@ -201,6 +226,12 @@ a{color:inherit;text-decoration:none}
           <div class="wl-field"><span class="wl-k">доработала руками</span><span class="wl-v">связка тумблера в шапке и в лаборатории, видео всегда muted</span></div>
           <div class="wl-field"><span class="wl-k">проверка</span><span class="wl-v">не мешает чтению, корректный старт, сохранение состояния между сессиями</span></div>
           <div class="wl-field wl-field--full">
+            <span class="wl-k">промт · Suno</span>
+            <div class="wl-prompts">
+              <div class="wl-prompt">Experimental electronic downtempo at 88 BPM with a dry syncopated drum machine, restrained sub-bass, and uneven mechanical rhythm; verse-like sections evolve through granular analog textures, filtered noise, distant metal clicks, and blurred reversed tones, Soft transitions, subtle tape wobble, seamless loop, intimate mysterious mix, spacious and quiet, electronic, slow, soft, deep, dramatic, soundtrack, minimal, noise, downtempo, experimental, hypnotic</div>
+            </div>
+          </div>
+          <div class="wl-field wl-field--full">
             <span class="wl-k">слабые места → как исправила</span>
             <div class="wl-weak"><span class="lbl">починено</span>браузер блокирует автоплей со звуком до жеста пользователя → старт при первом pointerdown/keydown/wheel; видео всегда muted, чтобы не конфликтовать с треком.</div>
           </div>
@@ -215,7 +246,7 @@ a{color:inherit;text-decoration:none}
         <p class="wl-when">этап 4 · разработка</p>
         <div class="wl-grid">
           <div class="wl-field"><span class="wl-k">нейросеть</span><span class="wl-v">Claude Code · GLM 5.2</span></div>
-          <div class="wl-field"><span class="wl-k">харнесс</span><span class="wl-v">Claude Code (CLI) · Tempo MCP</span></div>
+          <div class="wl-field"><span class="wl-k">харнесс</span><span class="wl-v">Claude Code (CLI) · Tempo MCP · скилы: Claude SEO, Context mode, Superpowers, UI/UX pro max, Taste skill, Content system (georgii rivera), Design</span></div>
           <div class="wl-field"><span class="wl-k">сделал AI</span><span class="wl-v">HTML/CSS/JS single-file: sticky hero, scroll-scrub видео, вязкий курсор-след, архив (12 карточек + фильтр + поиск), модалка, визард-лаборатория (7 экранов)</span></div>
           <div class="wl-field"><span class="wl-k">решения сама</span><span class="wl-v">single-file вместо фреймворка, нативный скролл вместо wheel-hijack, CSS-эмуляция WebGL (scope), тёмные/светлые пороги моушна</span></div>
           <div class="wl-field"><span class="wl-k">доработала руками</span><span class="wl-v">направление, контент 12 снов, ассет-менеджмент, правки моушна, тексты модалки</span></div>
@@ -231,15 +262,26 @@ a{color:inherit;text-decoration:none}
     <article class="wl-item reveal">
       <div class="wl-num">06</div>
       <div>
-        <h2 class="wl-phase">Перформанс &amp; доступность</h2>
-        <p class="wl-when">этап 5 · рефакторинг и финал</p>
+        <h2 class="wl-phase">Перформанс, доступность &amp; QA</h2>
+        <p class="wl-when">этап 5 · рефакторинг, финальная проверка на баги и сдача</p>
         <div class="wl-grid">
           <div class="wl-field"><span class="wl-k">нейросеть</span><span class="wl-v">Claude Code · GLM 5.2</span></div>
           <div class="wl-field"><span class="wl-k">харнесс</span><span class="wl-v">Claude Code (CLI)</span></div>
           <div class="wl-field"><span class="wl-k">сделал AI</span><span class="wl-v">WebP + ресайз, intro-loader, reveal-стаггер карточек, focus-trap модалки, keyboard a11y, prefers-reduced-motion, favicon, og-метатеги</span></div>
-          <div class="wl-field"><span class="wl-k">решения сама</span><span class="wl-v">оставить PNG как бэкап в _source/, исключить из деплоя через .vercelignore, порядок приоритетов аудита</span></div>
+          <div class="wl-field"><span class="wl-k">решения сама</span><span class="wl-v">оставить PNG как бэкап в _source/, исключить из деплоя через .vercelignore, порядок приоритетов аудита, обязательный финальный QA-проход всего сайта перед сдачей</span></div>
           <div class="wl-field"><span class="wl-k">доработала руками</span><span class="wl-v">аудит-ревью, расстановка приоритетов, финальная проверка визуально и с клавиатуры</span></div>
           <div class="wl-field"><span class="wl-k">проверка финала</span><span class="wl-v">Network-вкладка (вес публикации 83 МБ → 11 МБ), Lighthouse, проход с клавиатуры по карточкам и модалке, проверка контрастов, prefers-reduced-motion</span></div>
+          <div class="wl-field wl-field--full">
+            <span class="wl-k">финальная QA-проверка всего сайта на баги</span>
+            <div class="wl-weak"><span class="lbl">обязательный проход перед сдачей</span>Скролл туда-обратно по всем фазам hero, модалка (открытие/закрытие/ESC/Tab-Trap/возврат фокуса), фильтры и поиск архива, визард-лаборатория (все 7 экранов + назад), звук on/off и старт по жесту, адаптив 320–1440px, клавиатурный проход, консоль на ошибки, Lighthouse.
+Найденные баги → починено:
+• растворение по буквам с clip-path давало чёткую вертикальную линию-срез → заменён на эффект расплывающегося текста: blur + opacity + лёгкое scale/translateY, без жёсткой границы.
+• старт растворения привязан к счётчику жестов колёсика (≥3) → привязала к отметке 1 секунда первого видео.
+• между блоками Архив и Лаборатория оставалась полоса-разделитель → убрала border-top.
+• градиент фона Архива не по макету → поправила на #EEEFEC → #E7E4E3.
+• кегль шагов 01/02/03 был 32px → уменьшен до 20px, отступ между блоками шагов — 60px.
+• длинная строка стиха «забытые образы выходят из кокона памяти» ломала ритм → перенесла «выходят из кокона памяти» на новую строку.</div>
+          </div>
           <div class="wl-field wl-field--full">
             <span class="wl-k">слабые места → как исправила</span>
             <div class="wl-weak"><span class="lbl">починено</span>66 МБ PNG не референсятся в коде → WebP + перенос оригиналов в _source/ + .vercelignore; карточки не открывались с клавиатуры → role=button, tabindex=0, Enter/Space, focus-trap и возврат фокуса в модалке; :focus-visible outline для клавиатурного фокуса.</div>
