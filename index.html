@@ -771,6 +771,8 @@ body.hero-dissolve-active .hero-dissolve-line{
 
   var wheelGestureOpen = false;
   var wheelGestureTimer = 0;
+  var scrollbarGestureOpen = false;
+  var scrollbarGestureTimer = 0;
   var touchY = null;
   var finalReleaseTimer = 0;
 
@@ -1319,6 +1321,25 @@ body.hero-dissolve-active .hero-dissolve-line{
   renderHeroState();
 
   function tick(){
+    /* Скроллбар: пока hero активен, читаем реальную позицию ДО того,
+       как keepHeroViewportFixed сбросит её к heroLockY. Дельту скармливаем
+       advanceHero порциями — так переходы между фазами каскадируются
+       и большой перепрыг скроллбара прокручивает несколько фаз. */
+    if (heroActive) {
+      var rawY = window.scrollY;
+      if (Math.abs(rawY - heroLockY) > 1) {
+        var dy = rawY - heroLockY;
+        var steps = Math.max(1, Math.ceil(Math.abs(dy) / 120));
+        var step = dy / steps;
+        var gestureStart = !scrollbarGestureOpen;
+        scrollbarGestureOpen = true;
+        if (scrollbarGestureTimer) clearTimeout(scrollbarGestureTimer);
+        scrollbarGestureTimer = setTimeout(function(){ scrollbarGestureOpen = false; }, 140);
+        for (var s = 0; s < steps; s++) {
+          advanceHero(step, gestureStart && s === 0);
+        }
+      }
+    }
     keepHeroViewportFixed();
     var y = window.scrollY;
     if (y !== lastScrollY) {
