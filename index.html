@@ -300,9 +300,7 @@ body.hero-dissolve-active .hero-dissolve-line{
 .hero-cta{
   margin:36px 0 0; font-family:var(--mono);
   font-size:clamp(14px,1.5vw,18px); letter-spacing:-.02em; color:var(--muted);
-  cursor:pointer; transition:color .3s ease; display:inline-block
 }
-.hero-cta:hover{color:var(--ink)}
 .hero-cap{margin:60px 0 0; font-family:var(--mono); font-size:clamp(14px,1.5vw,20px); letter-spacing:-.02em; color:var(--muted)}
 .hero-arrow{
   margin-top:16px; font-family:var(--mono); font-size:clamp(16px,1.5vw,20px); color:var(--muted);
@@ -1532,20 +1530,6 @@ body.hero-dissolve-active .hero-dissolve-line{
       }
     });
   });
-
-  /* CTA «Восстановить образ» — переход в лабораторию */
-  var heroCtaEl = document.getElementById('hero-cta');
-  if (heroCtaEl) {
-    heroCtaEl.setAttribute('role', 'button');
-    heroCtaEl.setAttribute('tabindex', '0');
-    function goLab(){
-      skipHeroSequence();
-      var labEl = document.getElementById('lab');
-      if (labEl) labEl.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-    }
-    heroCtaEl.addEventListener('click', goLab);
-    heroCtaEl.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goLab(); } });
-  }
 
   /* ---------- БЛОК 2 · ARHIVE: карточки, фильтры, поиск ---------- */
   var CARDS = [
