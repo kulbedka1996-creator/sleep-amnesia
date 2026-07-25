@@ -771,8 +771,7 @@ body.hero-dissolve-active .hero-dissolve-line{
 
   var wheelGestureOpen = false;
   var wheelGestureTimer = 0;
-  var scrollbarGestureOpen = false;
-  var scrollbarGestureTimer = 0;
+  var scrollbarDriven = false;
   var touchY = null;
   var finalReleaseTimer = 0;
 
@@ -874,6 +873,7 @@ body.hero-dissolve-active .hero-dissolve-line{
   function releaseHeroSequence(){
     if (!heroActive) return;
     heroActive = false;
+    scrollbarDriven = false;
     heroReleasedAt = 'bottom';
     var heroTop = getHeroTop();
     var total = Math.max(0, heroScroll.offsetHeight - innerHeight);
@@ -884,6 +884,7 @@ body.hero-dissolve-active .hero-dissolve-line{
   function releaseHeroReverse(){
     if (!heroActive) return;
     heroActive = false;
+    scrollbarDriven = false;
     heroReleasedAt = 'top';
     heroAnchorY = getHeroTop();
     window.scrollTo(0, heroAnchorY);
@@ -892,6 +893,7 @@ body.hero-dissolve-active .hero-dissolve-line{
   function engageForward(){
     if (finalReleaseTimer) { clearTimeout(finalReleaseTimer); finalReleaseTimer = 0; }
     heroActive = true;
+    scrollbarDriven = false;
     heroPhase = 'video1';
     phaseProgress = 0;
     titleDissolveStarted = false;
@@ -907,6 +909,7 @@ body.hero-dissolve-active .hero-dissolve-line{
   function engageReverse(){
     if (finalReleaseTimer) { clearTimeout(finalReleaseTimer); finalReleaseTimer = 0; }
     heroActive = true;
+    scrollbarDriven = false;
     heroPhase = 'finalText';
     phaseProgress = 1;
     titleDissolveStarted = true;
@@ -933,6 +936,7 @@ body.hero-dissolve-active .hero-dissolve-line{
       finalReleaseTimer = 0;
     }
     heroActive = false;
+    scrollbarDriven = false;
     heroReleasedAt = 'bottom';
     suppressReengageUntil = Date.now() + 1200;
   }
@@ -1124,6 +1128,8 @@ body.hero-dissolve-active .hero-dissolve-line{
   }
 
   addEventListener('wheel', function(event){
+    /* scroll-driven режим (скроллбар): позволяем естественный скролл, не hijack */
+    if (heroActive && scrollbarDriven) return;
     if (!heroActive) {
       if (Date.now() < suppressReengageUntil) return;
       var ht = getHeroTop();
@@ -1157,6 +1163,7 @@ body.hero-dissolve-active .hero-dissolve-line{
 
   addEventListener('touchmove', function(event){
     if (!heroActive || !event.touches || !event.touches.length) return;
+    if (scrollbarDriven) return; /* scroll-driven: позволяем естественный скролл */
     event.preventDefault();
 
     var currentY = event.touches[0].clientY;
@@ -1176,6 +1183,7 @@ body.hero-dissolve-active .hero-dissolve-line{
 
   addEventListener('keydown', function(event){
     if (!heroActive) return;
+    if (scrollbarDriven) return; /* scroll-driven: позволяем естественный скролл */
     var active = document.activeElement;
     if (active && (active.matches('input, textarea, select') || active.isContentEditable)) return;
 
@@ -1320,27 +1328,56 @@ body.hero-dissolve-active .hero-dissolve-line{
   lastScrollY = heroAnchorY;
   renderHeroState();
 
+  /* Маппинг общего прогресса скролла hero (0..1) на фазы + phaseProgress.
+     Используется в scroll-driven режиме для скроллбара. Доли взяты пропорционально
+     SCROLL_DISTANCE фаз: video1 1900, video2 1650, poemPause ~400, video3 1700, finalText 1450. */
+  var PHASE_BOUNDS = (function(){
+    var d = {v1:1900, v2:1650, pp:400, v3:1700, ft:1450};
+    var total = d.v1 + d.v2 + d.pp + d.v3 + d.ft;
+    var cum = 0;
+    var b = {};
+    b.v1s = 0; cum += d.v1; b.v1e = cum/total;
+    b.v2s = b.v1e; cum += d.v2; b.v2e = cum/total;
+    b.pps = b.v2e; cum += d.pp; b.ppe = cum/total;
+    b.v3s = b.ppe; cum += d.v3; b.v3e = cum/total;
+    b.fts = b.v3e; cum += d.ft; b.fte = 1;
+    b.tdStart = 0.20 * b.v1e / 1; /* 1с видео ~ 0.20 фазы video1 (если dur=5с), в долях общего */
+    b.tdStart = (1/5) * (b.v1e - b.v1s); /* старт dissolve: 1с от начала video1 */
+    b.tdEnd = b.v1e; /* заканчивается к концу video1 */
+    return b;
+  })();
+  function setPhaseFromScroll(p){
+    var b = PHASE_BOUNDS;
+    if (p < b.v1e) { heroPhase = 'video1'; phaseProgress = clamp01((p - b.v1s) / (b.v1e - b.v1s)); }
+    else if (p < b.v2e) { heroPhase = 'video2'; phaseProgress = clamp01((p - b.v2s) / (b.v2e - b.v2s)); }
+    else if (p < b.ppe) { heroPhase = 'poemPause'; phaseProgress = 1; poemPauseGestures = 1; }
+    else if (p < b.v3e) { heroPhase = 'video3'; phaseProgress = clamp01((p - b.v3s) / (b.v3e - b.v3s)); }
+    else { heroPhase = 'finalText'; phaseProgress = clamp01((p - b.fts) / (b.fte - b.fts)); }
+    /* titleDissolve: от 1с video1 до конца video1 */
+    if (p >= b.tdStart) { titleDissolveStarted = true; titleDissolveProgress = clamp01((p - b.tdStart) / (b.tdEnd - b.tdStart)); }
+    else { titleDissolveStarted = false; titleDissolveProgress = 0; }
+    if (heroPhase !== 'poemPause') poemPauseGestures = (heroPhase === 'video3' || heroPhase === 'finalText') ? 1 : 0;
+    renderHeroState();
+  }
+
   function tick(){
-    /* Скроллбар: пока hero активен, читаем реальную позицию ДО того,
-       как keepHeroViewportFixed сбросит её к heroLockY. Дельту скармливаем
-       advanceHero порциями — так переходы между фазами каскадируются
-       и большой перепрыг скроллбара прокручивает несколько фаз. */
-    if (heroActive) {
-      var rawY = window.scrollY;
-      if (Math.abs(rawY - heroLockY) > 1) {
-        var dy = rawY - heroLockY;
-        var steps = Math.max(1, Math.ceil(Math.abs(dy) / 120));
-        var step = dy / steps;
-        var gestureStart = !scrollbarGestureOpen;
-        scrollbarGestureOpen = true;
-        if (scrollbarGestureTimer) clearTimeout(scrollbarGestureTimer);
-        scrollbarGestureTimer = setTimeout(function(){ scrollbarGestureOpen = false; }, 140);
-        for (var s = 0; s < steps; s++) {
-          advanceHero(step, gestureStart && s === 0);
-        }
-      }
+    /* Скроллбар: если hero активен и scrollY ушёл от lock-позиции — это скроллбар
+       (wheel/тач/клавиши preventDefault'ятся и не двигают scrollY). Переходим в
+       scroll-driven режим: не сбрасываем scrollY, а вычисляем фазы из позиции скролла.
+       Ползунок не дёргается, анимация плавная. */
+    if (heroActive && !scrollbarDriven) {
+      if (Math.abs(window.scrollY - heroLockY) > 5) scrollbarDriven = true;
     }
-    keepHeroViewportFixed();
+    if (heroActive && scrollbarDriven) {
+      var heroTop = getHeroTop();
+      var total = Math.max(1, heroScroll.offsetHeight - innerHeight);
+      var p = clamp01((window.scrollY - heroTop) / total);
+      setPhaseFromScroll(p);
+      if (p >= 0.999) { releaseHeroSequence(); scrollbarDriven = false; }
+      else if (p <= 0.001 && window.scrollY <= heroTop + 1) { releaseHeroReverse(); scrollbarDriven = false; }
+    } else {
+      keepHeroViewportFixed();
+    }
     var y = window.scrollY;
     if (y !== lastScrollY) {
       var scrollingUp = y < lastScrollY;
