@@ -87,7 +87,31 @@ body.scrolled .topbar{
 
 /* ---- HERO ---- */
 .hero-scroll{position:relative; height:800vh}
-.hero-stage{position:sticky; top:0; height:100svh; overflow:hidden; isolation:isolate}
+.hero-stage{position:sticky; top:0; height:100svh; overflow:hidden; isolation:isolate; cursor:crosshair}
+
+/* ripple-байт: клик в любом месте hero — расходящееся мерцание как по воде */
+.hero-ripple{position:absolute; inset:0; z-index:6; pointer-events:none; overflow:hidden}
+.hero-ripple__ring{
+  position:absolute; border-radius:50%; transform:translate(-50%,-50%) scale(0);
+  border:1px solid rgba(91,143,212,.55);
+  background:radial-gradient(circle, rgba(220,180,200,.18) 0%, rgba(91,143,212,.10) 45%, transparent 70%);
+  mix-blend-mode:multiply;
+  animation:heroRipple 1.4s cubic-bezier(.2,.7,.2,1) forwards;
+  pointer-events:none;
+}
+@keyframes heroRipple{
+  0%{transform:translate(-50%,-50%) scale(0); opacity:.9; border-width:1.5px}
+  60%{opacity:.5}
+  100%{transform:translate(-50%,-50%) scale(1); opacity:0; border-width:.3px}
+}
+.hero-hint{
+  position:absolute; left:50%; bottom:clamp(20px,5vh,46px); transform:translateX(-50%);
+  z-index:7; font-family:var(--mono); font-size:clamp(11px,1.3vw,13px); letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted); pointer-events:none;
+  opacity:0; transition:opacity .6s ease;
+}
+.hero-hint.in{opacity:.7}
+@media (max-width:640px){ .hero-hint{bottom:18px} }
 
 /* цветная аура recall — вне жидкости, не искажается */
 .cursor-aura{
@@ -476,6 +500,7 @@ body.hero-dissolve-active .hero-dissolve-line{
 <section class="hero-scroll" id="hero">
   <div class="hero-stage">
     <div class="cursor-aura" id="aura" aria-hidden="true"></div>
+    <div class="hero-ripple" id="heroRipple" aria-hidden="true"></div>
     <div class="liquid" id="liquidLayer">
       <video class="hero-video is-loading" id="bfly" src="ФОН.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
       <video class="hero-video hero-video2" id="bfly2" src="ФОН 2.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
@@ -490,6 +515,7 @@ body.hero-dissolve-active .hero-dissolve-line{
           <p class="hero-cta reveal reveal-d2 s1line hero-dissolve-line" id="hero-cta">Восстановить образ</p>
           <div class="hero-arrow hero-dissolve-line" id="hero-arrow" aria-hidden="true">↓</div>
         </div>
+        <div class="hero-hint" id="heroHint" aria-hidden="true">коснись экрана, чтобы услышать архив</div>
         <div class="state-2" id="state2">
           <div class="hero-poem-layer" id="heroPoemLayer" aria-hidden="true">
             <div class="hero-poem" id="heroPoem">
@@ -1291,6 +1317,37 @@ body.hero-dissolve-active .hero-dissolve-line{
   addEventListener('keydown', activateSound);
   addEventListener('touchstart', activateSound);
   addEventListener('wheel', activateSound, { passive: true });
+
+  /* ---------- ripple-байт: клик в hero — расходящееся мерцание + запуск звука ---------- */
+  var heroStage = document.querySelector('.hero-stage');
+  var heroRipple = document.getElementById('heroRipple');
+  var heroHint = document.getElementById('heroHint');
+  if (heroHint) {
+    /* подсказка появляется после лоадера, исчезает после первого клика */
+    setTimeout(function(){ if (heroHint) heroHint.classList.add('in'); }, 1800);
+  }
+  function spawnRipple(x, y){
+    if (!heroRipple) return;
+    var ring = document.createElement('div');
+    ring.className = 'hero-ripple__ring';
+    var size = Math.max(innerWidth, innerHeight) * 0.9;
+    ring.style.left = x + 'px';
+    ring.style.top = y + 'px';
+    ring.style.width = size + 'px';
+    ring.style.height = size + 'px';
+    heroRipple.appendChild(ring);
+    setTimeout(function(){ if (ring.parentNode) ring.parentNode.removeChild(ring); }, 1500);
+  }
+  function dismissHeroHint(){ if (heroHint) { heroHint.classList.remove('in'); } }
+  if (heroStage) {
+    heroStage.addEventListener('pointerdown', function(e){
+      if (e.target.closest('button, a, input, textarea, select, [data-close]')) return;
+      var r = heroStage.getBoundingClientRect();
+      spawnRipple(e.clientX - r.left, e.clientY - r.top);
+      activateSound();
+      dismissHeroHint();
+    });
+  }
 
   document.addEventListener('click', function(e){
     var b = e.target.closest('#sound, .lab-sound'); if (!b) return;
