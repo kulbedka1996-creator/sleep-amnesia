@@ -83,6 +83,22 @@ body.scrolled .topbar{
 .topbar .sound.is-on{opacity:1}
 .topbar .sound.is-pulse{animation:soundPulse 1.6s ease-in-out infinite}
 @keyframes soundPulse{0%,100%{opacity:.55; transform:translateY(0)}50%{opacity:1; transform:translateY(-2px)}}
+/* деликатные волны от кнопки sound — намёк кликнуть, чтобы услышать архив */
+.sound-wrap{position:relative; display:inline-flex; align-items:center}
+.sound-waves{position:absolute; top:50%; left:50%; width:0; height:0; pointer-events:none; opacity:0; transition:opacity .6s ease}
+.sound-waves.in{opacity:1}
+.sound-waves span{
+  position:absolute; top:0; left:0; width:22px; height:22px; margin:-11px 0 0 -11px;
+  border-radius:50%; border:1px solid rgba(91,143,212,.5);
+  transform:scale(.4); opacity:0; animation:soundWave 2.4s ease-out infinite;
+}
+.sound-waves span:nth-child(2){animation-delay:.8s}
+.sound-waves span:nth-child(3){animation-delay:1.6s}
+@keyframes soundWave{
+  0%{transform:scale(.4); opacity:.65; border-width:1.2px}
+  70%{opacity:.22}
+  100%{transform:scale(2.6); opacity:0; border-width:.3px}
+}
 @media (max-width:640px){ .topbar nav{gap:16px} }
 
 /* ---- HERO ---- */
@@ -468,7 +484,10 @@ body.hero-dissolve-active .hero-dissolve-line{
     <a href="#" data-nav="lab">лаборатория</a>
     <a href="worklog.html" data-nav="worklog">worklog</a>
   </nav>
-  <button class="sound" id="sound" type="button" aria-pressed="false">sound: off</button>
+  <span class="sound-wrap">
+    <button class="sound" id="sound" type="button" aria-pressed="false">sound: off</button>
+    <span class="sound-waves" id="soundWaves" aria-hidden="true"><span></span><span></span><span></span></span>
+  </span>
 </header>
 
 <span id="top"></span>
@@ -1245,13 +1264,18 @@ body.hero-dissolve-active .hero-dissolve-line{
   applySound();
 
   var soundActivated = false;
+  var soundWaves = document.getElementById('soundWaves');
   function stopPulse(){
     soundBtns().forEach(function(b){ b.classList.remove('is-pulse'); });
+    if (soundWaves) soundWaves.classList.remove('in');
   }
   function startPulse(){
     if (!soundOn) return;
     soundBtns().forEach(function(b){ b.classList.add('is-pulse'); });
+    if (soundWaves) soundWaves.classList.add('in');
   }
+  /* волны появляются после лоадера как деликатный намёк */
+  if (soundWaves && soundOn) setTimeout(function(){ if (!soundActivated) soundWaves.classList.add('in'); }, 1800);
   function detachActivation(){
     removeEventListener('pointerdown', activateSound);
     removeEventListener('click', activateSound);
