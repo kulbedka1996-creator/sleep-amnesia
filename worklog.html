@@ -60,6 +60,8 @@ a{color:inherit;text-decoration:none}
 }
 .topbar .sound:hover{opacity:1}
 .topbar .sound.is-on{opacity:1}
+.topbar .sound.is-pulse{animation:soundPulse 1.6s ease-in-out infinite}
+@keyframes soundPulse{0%,100%{opacity:.55; transform:translateY(0)}50%{opacity:1; transform:translateY(-2px)}}
 @media (max-width:640px){ .topbar nav{gap:14px} .topbar .back{display:none} }
 
 .wrap{max-width:1080px; margin:0 auto; padding:clamp(120px,16vw,180px) var(--gutter) clamp(80px,10vw,140px)}
@@ -333,7 +335,8 @@ a{color:inherit;text-decoration:none}
   if (reduce) document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
   setTimeout(function(){ document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); }); }, 2600);
 
-  /* ---------- звук (общий с лендингом, localStorage) ---------- */
+  /* ---------- звук (общий с лендингом, localStorage) ----------
+     Chrome блокирует звук до жеста активации; wheel — не жест. См. index.html. */
   var bgm = document.getElementById('bgm');
   if (bgm) bgm.volume = 0.5;
   var soundOn = true;
@@ -346,7 +349,6 @@ a{color:inherit;text-decoration:none}
       soundBtn.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
     }
   }
-  /* Muted-autoplay — всегда молча, unmute на жесте. */
   if (bgm) {
     bgm.muted = true;
     bgm.volume = 0.5;
@@ -361,48 +363,52 @@ a{color:inherit;text-decoration:none}
     });
   }
   applySound();
+  function stopPulse(){ if (soundBtn) soundBtn.classList.remove('is-pulse'); }
+  function startPulse(){ if (soundBtn && soundOn) soundBtn.classList.add('is-pulse'); }
+  function detachActivation(){
+    removeEventListener('pointerdown', activateSound);
+    removeEventListener('click', activateSound);
+    removeEventListener('keydown', activateSound);
+    removeEventListener('touchstart', activateSound);
+    removeEventListener('wheel', activateSound);
+  }
+  function activateSound(){
+    if (!soundOn || !bgm) { detachActivation(); stopPulse(); return; }
+    bgm.muted = false;
+    var p = bgm.play();
+    var onOk = function(){ if (!bgm.paused && !bgm.muted) { detachActivation(); stopPulse(); } };
+    var onFail = function(){
+      if (bgm.readyState < 3) {
+        bgm.addEventListener('canplay', function once(){
+          bgm.removeEventListener('canplay', once);
+          if (!soundOn || !bgm) { detachActivation(); return; }
+          bgm.muted = false;
+          var p2 = bgm.play();
+          if (p2 && p2.then) p2.then(onOk).catch(function(){ startPulse(); });
+          else onOk();
+        });
+      } else { bgm.muted = true; startPulse(); }
+    };
+    if (p && p.then) p.then(onOk).catch(onFail);
+    else onOk();
+  }
+  addEventListener('pointerdown', activateSound);
+  addEventListener('click', activateSound);
+  addEventListener('keydown', activateSound);
+  addEventListener('touchstart', activateSound);
+  addEventListener('wheel', activateSound, { passive: true });
   if (soundBtn) soundBtn.addEventListener('click', function(){
     soundOn = !soundOn;
     applySound();
     if (bgm) {
       bgm.muted = !soundOn;
-      if (soundOn) { var p = bgm.play(); if (p && p.then) p.catch(function(){}); }
+      if (soundOn) {
+        var p = bgm.play();
+        if (p && p.then) p.then(stopPulse).catch(function(){});
+      } else stopPulse();
     }
     try { localStorage.setItem('sa-sound', soundOn ? '1' : '0'); } catch (e2) {}
   });
-  var firstUnmuteAttached = true;
-  function detachFirstUnmute(){
-    if (!firstUnmuteAttached) return;
-    firstUnmuteAttached = false;
-    removeEventListener('pointerdown', firstUnmute);
-    removeEventListener('click', firstUnmute);
-    removeEventListener('wheel', firstUnmute);
-    removeEventListener('keydown', firstUnmute);
-  }
-  function firstUnmute(){
-    if (!soundOn || !bgm) { detachFirstUnmute(); return; }
-    bgm.muted = false;
-    var p = bgm.play();
-    if (p && p.then) {
-      p.then(function(){ if (!bgm.paused && !bgm.muted) detachFirstUnmute(); })
-       .catch(function(){
-         if (bgm.readyState < 3) {
-           bgm.addEventListener('canplay', function oncePlay(){
-             bgm.removeEventListener('canplay', oncePlay);
-             if (!soundOn || !bgm) { detachFirstUnmute(); return; }
-             bgm.muted = false;
-             var p2 = bgm.play();
-             if (p2 && p2.then) p2.then(detachFirstUnmute).catch(function(){});
-             else detachFirstUnmute();
-           });
-         }
-       });
-    } else detachFirstUnmute();
-  }
-  addEventListener('pointerdown', firstUnmute);
-  addEventListener('click', firstUnmute);
-  addEventListener('wheel', firstUnmute, { passive: true });
-  addEventListener('keydown', firstUnmute);
 
   /* ---------- кнопка копирования промтов ---------- */
   function getPromptText(node){

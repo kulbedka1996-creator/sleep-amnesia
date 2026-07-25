@@ -81,6 +81,8 @@ body.scrolled .topbar{
 }
 .topbar .sound:hover{opacity:1}
 .topbar .sound.is-on{opacity:1}
+.topbar .sound.is-pulse{animation:soundPulse 1.6s ease-in-out infinite}
+@keyframes soundPulse{0%,100%{opacity:.55; transform:translateY(0)}50%{opacity:1; transform:translateY(-2px)}}
 @media (max-width:640px){ .topbar nav{gap:16px} }
 
 /* ---- HERO ---- */
@@ -1197,7 +1199,13 @@ body.hero-dissolve-active .hero-dissolve-line{
     renderHeroState();
   });
 
-  /* ---------- звук: фоновая музыка ---------- */
+  /* ---------- звук: фоновая музыка ----------
+     Chrome блокирует звук до «жеста активации». wheel/scroll — НЕ жест активации,
+     только click/pointerdown/keydown/touchstart. Поэтому:
+     1) со старта muted-autoplay (всегда разрешён) — трек играет молча, прогревается;
+     2) на первый клик/тап/клавишу в любом месте — снимаем mute (работает всегда);
+     3) на wheel тоже пробуем — сработает, если домен уже разблокирован (MEI);
+     4) если wheel не смог — мягко пульсируем кнопкой sound, приглашая кликнуть. */
   video.muted = true;
   var bgm = document.getElementById('bgm');
   if (bgm) bgm.volume = 0.5;
@@ -1205,23 +1213,18 @@ body.hero-dissolve-active .hero-dissolve-line{
   try { var _s = localStorage.getItem('sa-sound'); if (_s !== null) soundOn = _s === '1'; } catch (e) {}
   function soundBtns(){ return document.querySelectorAll('#sound, .lab-sound'); }
   function applySound(){
-    /* только UI кнопки — не трогаем muted/play здесь, чтобы не ломать muted-autoplay */
     soundBtns().forEach(function(b){
       b.textContent = 'sound: ' + (soundOn ? 'on' : 'off');
       b.classList.toggle('is-on', soundOn);
       b.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
     });
   }
-  /* Muted-autoplay разрешён всегда — запускаем трек ВСЕГДА молча,
-     а на первом жесте снимаем mute (если звук включён).
-     Не пытаемся играть со звуком до жеста — Chrome это блокирует. */
   if (bgm) {
     bgm.muted = true;
     bgm.volume = 0.5;
     try { bgm.load(); } catch (e) {}
     var warmUp = bgm.play();
     if (warmUp && warmUp.then) warmUp.catch(function(){
-      /* если и muted-autoplay не заиграл — повторим на canplay */
       bgm.addEventListener('canplay', function onceWarm(){
         bgm.removeEventListener('canplay', onceWarm);
         bgm.muted = true;
@@ -1230,58 +1233,68 @@ body.hero-dissolve-active .hero-dissolve-line{
     });
   }
   applySound();
+
+  var soundActivated = false;
+  function stopPulse(){
+    soundBtns().forEach(function(b){ b.classList.remove('is-pulse'); });
+  }
+  function startPulse(){
+    if (!soundOn) return;
+    soundBtns().forEach(function(b){ b.classList.add('is-pulse'); });
+  }
+  function detachActivation(){
+    removeEventListener('pointerdown', activateSound);
+    removeEventListener('click', activateSound);
+    removeEventListener('keydown', activateSound);
+    removeEventListener('touchstart', activateSound);
+    removeEventListener('wheel', activateSound);
+  }
+  function activateSound(){
+    if (!soundOn || !bgm) { detachActivation(); stopPulse(); return; }
+    bgm.muted = false;
+    var p = bgm.play();
+    var onOk = function(){
+      if (!bgm.paused && !bgm.muted) { soundActivated = true; detachActivation(); stopPulse(); }
+    };
+    var onFail = function(){
+      /* Chrome заблокировал звук на этом жесте (wheel не активация).
+         Если аудио ещё не готово — попробуем на canplay; иначе пульсируем кнопкой. */
+      if (bgm.readyState < 3) {
+        bgm.addEventListener('canplay', function once(){
+          bgm.removeEventListener('canplay', once);
+          if (!soundOn || !bgm) { detachActivation(); return; }
+          bgm.muted = false;
+          var p2 = bgm.play();
+          if (p2 && p2.then) p2.then(onOk).catch(function(){ startPulse(); });
+          else onOk();
+        });
+      } else {
+        bgm.muted = true; /* вернём mute, чтобы не висел полу-состоянием */
+        startPulse();
+      }
+    };
+    if (p && p.then) p.then(onOk).catch(onFail);
+    else onOk();
+  }
+  addEventListener('pointerdown', activateSound);
+  addEventListener('click', activateSound);
+  addEventListener('keydown', activateSound);
+  addEventListener('touchstart', activateSound);
+  addEventListener('wheel', activateSound, { passive: true });
+
   document.addEventListener('click', function(e){
     var b = e.target.closest('#sound, .lab-sound'); if (!b) return;
     soundOn = !soundOn;
     applySound();
     if (bgm) {
       bgm.muted = !soundOn;
-      if (soundOn) { var p = bgm.play(); if (p && p.then) p.catch(function(){}); }
+      if (soundOn) {
+        var p = bgm.play();
+        if (p && p.then) p.then(function(){ soundActivated = true; stopPulse(); }).catch(function(){});
+      } else { stopPulse(); }
     }
     try { localStorage.setItem('sa-sound', soundOn ? '1' : '0'); } catch (e2) {}
   });
-  // первый жест (scroll/click/key/touch) — снимаем mute, если звук включён.
-  // Не снимаем слушатель, пока трек реально не зазвучал — аудио может быть ещё не буферизовано.
-  var firstUnmuteAttached = true;
-  function detachFirstUnmute(){
-    if (!firstUnmuteAttached) return;
-    firstUnmuteAttached = false;
-    removeEventListener('pointerdown', firstUnmute);
-    removeEventListener('click', firstUnmute);
-    removeEventListener('wheel', firstUnmute);
-    removeEventListener('touchmove', firstUnmute);
-    removeEventListener('keydown', firstUnmute);
-  }
-  function firstUnmute(){
-    if (!soundOn || !bgm) { detachFirstUnmute(); return; }
-    bgm.muted = false;
-    var p = bgm.play();
-    if (p && p.then) {
-      p.then(function(){
-        if (!bgm.paused && !bgm.muted) detachFirstUnmute();
-      }).catch(function(){
-        /* аудио ещё не готово — дождёмся canplay и сыграем со звуком */
-        if (bgm.readyState < 3) {
-          bgm.addEventListener('canplay', function oncePlay(){
-            bgm.removeEventListener('canplay', oncePlay);
-            if (!soundOn || !bgm) { detachFirstUnmute(); return; }
-            bgm.muted = false;
-            var p2 = bgm.play();
-            if (p2 && p2.then) p2.then(detachFirstUnmute).catch(function(){});
-            else detachFirstUnmute();
-          });
-        }
-        /* если hard-blocked — не сдаёмся, следующий жест попробует снова */
-      });
-    } else {
-      detachFirstUnmute();
-    }
-  }
-  addEventListener('pointerdown', firstUnmute);
-  addEventListener('click', firstUnmute);
-  addEventListener('wheel', firstUnmute, { passive: true });
-  addEventListener('touchmove', firstUnmute, { passive: true });
-  addEventListener('keydown', firstUnmute);
 
   /* ---------- rAF loop ---------- */
   var archiveTop = 0;
