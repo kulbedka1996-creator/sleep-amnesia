@@ -57,12 +57,6 @@ video{display:block;max-width:none}
 .loader__bar{width:min(280px,46vw); height:1px; background:rgba(30,30,28,.15); overflow:hidden}
 .loader__bar span{display:block; width:100%; height:100%; background:var(--ink); transform:scaleX(0); transform-origin:left; transition:transform .2s linear}
 
-/* ---- магнитные кнопки ---- */
-.magnetic{display:inline-block; transition:transform .35s cubic-bezier(.2,.7,.2,1), filter .35s ease; will-change:transform; transform:translate3d(0,0,0)}
-.magnetic > *{display:inline-block; transition:transform .35s cubic-bezier(.2,.7,.2,1); will-change:transform}
-.magnetic.is-hover{filter:none}
-.magnetic.is-active{transition:transform .12s ease}
-
 /* ---- зерно ---- */
 .grain{position:fixed; inset:0; z-index:60; pointer-events:none; opacity:.13; mix-blend-mode:multiply;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -534,7 +528,7 @@ body.hero-dissolve-active .hero-dissolve-line{
             <span class="hero-sub-line hero-dissolve-line">Интерактивный архив, который помогает сохранить</span>
             <span class="hero-sub-line hero-dissolve-line">и восстановить исчезающие фрагменты сновидений.</span>
           </p>
-          <p class="hero-cta reveal reveal-d2 s1line hero-dissolve-line magnetic" id="hero-cta">Восстановить образ</p>
+          <p class="hero-cta reveal reveal-d2 s1line hero-dissolve-line" id="hero-cta">Восстановить образ</p>
           <div class="hero-arrow hero-dissolve-line" id="hero-arrow" aria-hidden="true">↓</div>
         </div>
         <div class="state-2" id="state2">
@@ -577,7 +571,7 @@ body.hero-dissolve-active .hero-dissolve-line{
   <div class="arc-head">
     <h2 class="arc-title">Archive</h2>
     <p class="arc-sub">Чужие сны оставляют знакомые следы.<br>Исследуйте образы, которые сохранили другие,<br>находите вдохновение или поделитесь своим фрагментом</p>
-    <button class="arc-cta magnetic" type="button">+ Добавить фрагмент</button>
+    <button class="arc-cta" type="button">+ Добавить фрагмент</button>
   </div>
 
   <div class="arc-toolbar">
@@ -1814,46 +1808,6 @@ body.hero-dissolve-active .hero-dissolve-line{
     var addBtn=document.querySelector('.arc-cta'); if(addBtn) addBtn.addEventListener('click', function(){ openLab(); });
     /* инициализация визарда на старте */
     render(0,true);
-  }
-
-  /* ---------- магнитные кнопки ---------- */
-  if (!coarse && !reduce) {
-    var MAG_RANGE = 90;     /* радиус притяжения в px */
-    var MAG_PULL = 0.42;    /* сила притяжения */
-    var MAG_INNER = 0.28;   /* внутреннее смещение контента */
-    function applyMagnetic(el, mx, my){
-      var r = el.getBoundingClientRect();
-      var cx = r.left + r.width/2;
-      var cy = r.top + r.height/2;
-      var dx = mx - cx;
-      var dy = my - cy;
-      var dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist > MAG_RANGE) {
-        el.style.transform = 'translate3d(0,0,0)';
-        var inner = el.firstElementChild;
-        if (inner) inner.style.transform = 'translate3d(0,0,0)';
-        return;
-      }
-      var pull = MAG_PULL * (1 - dist/MAG_RANGE);
-      el.style.transform = 'translate3d(' + (dx*pull).toFixed(2) + 'px,' + (dy*pull).toFixed(2) + 'px,0)';
-      var inner = el.firstElementChild;
-      if (inner) inner.style.transform = 'translate3d(' + (dx*pull*MAG_INNER).toFixed(2) + 'px,' + (dy*pull*MAG_INNER).toFixed(2) + 'px,0)';
-    }
-    var magEls = Array.prototype.slice.call(document.querySelectorAll('.magnetic'));
-    /* фильтры тоже магнитные */
-    document.querySelectorAll('.arc-filter').forEach(function(f){ f.classList.add('magnetic'); magEls.push(f); });
-    var magRAF = 0;
-    var lastMX = -9999, lastMY = -9999;
-    addEventListener('pointermove', function(e){ lastMX = e.clientX; lastMY = e.clientY; }, { passive:true });
-    function magTick(){
-      magEls.forEach(function(el){ applyMagnetic(el, lastMX, lastMY); });
-      magRAF = requestAnimationFrame(magTick);
-    }
-    magRAF = requestAnimationFrame(magTick);
-    addEventListener('resize', function(){
-      /* сброс смещений при ресайзе */
-      magEls.forEach(function(el){ el.style.transform = 'translate3d(0,0,0)'; var i = el.firstElementChild; if (i) i.style.transform = 'translate3d(0,0,0)'; });
-    });
   }
 
   /* ---------- курсор-след не блюрит интерактив ---------- */
