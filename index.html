@@ -52,6 +52,13 @@ video{display:block;max-width:none}
 ::selection{background:rgba(40,40,38,.12)}
 :focus-visible{outline:2px solid var(--ink); outline-offset:3px; border-radius:2px}
 
+/* ---- Lenis smooth scroll ---- */
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+.lenis.lenis-smooth [data-lenis-prevent]{overscroll-behavior:contain}
+.lenis.lenis-stopped{overflow:hidden}
+.lenis.lenis-smooth iframe{pointer-events:none}
+
 /* intro-loader со счётчиком % */
 .loader{position:fixed; inset:0; z-index:200; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:clamp(28px,5vh,48px); transition:opacity .8s ease, visibility .8s}
 .loader.done{opacity:0; visibility:hidden}
@@ -61,6 +68,10 @@ video{display:block;max-width:none}
 .loader__mark{font-family:var(--mono); font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); opacity:.7}
 .loader__bar{width:min(280px,46vw); height:1px; background:rgba(30,30,28,.15); overflow:hidden}
 .loader__bar span{display:block; width:100%; height:100%; background:var(--ink); transform:scaleX(0); transform-origin:left; transition:transform .2s linear}
+
+/* ---- вуаль перехода между страницами ---- */
+.page-veil{position:fixed; inset:0; z-index:150; background:var(--bg); opacity:0; pointer-events:none; transition:opacity .42s ease}
+.page-veil.show{opacity:1; pointer-events:auto}
 
 /* ---- зерно ---- */
 .grain{position:fixed; inset:0; z-index:60; pointer-events:none; opacity:.13; mix-blend-mode:multiply;
@@ -298,8 +309,8 @@ body.hero-dissolve-active .hero-dissolve-line{
 
 .hero-sub{display:block; margin:40px auto 0; font-family:var(--mono); font-size:clamp(16px,2vw,20px); letter-spacing:-.02em; color:var(--ink); line-height:1.1; text-align:center; width:fit-content; max-width:100%}
 .hero-cta{
-  margin:36px 0 0; font-family:var(--mono);
-  font-size:clamp(14px,1.5vw,18px); letter-spacing:-.02em; color:var(--muted);
+  margin:36px 0 0; font-family:'PT Mono', monospace;
+  font-size:20px; letter-spacing:-.02em; color:var(--muted);
 }
 .hero-cap{margin:60px 0 0; font-family:var(--mono); font-size:clamp(14px,1.5vw,20px); letter-spacing:-.02em; color:var(--muted)}
 .hero-arrow{
@@ -355,15 +366,24 @@ body.hero-dissolve-active .hero-dissolve-line{
 .card.in{opacity:1; transform:none; filter:blur(0)}
 .card.hidden{display:none}
 .card__cover{position:relative; aspect-ratio:1/1.16; overflow:hidden; border-radius:2px; background:#e0e0dd;
-  background-image:var(--bw); background-size:cover; background-position:center; transition:transform .55s cubic-bezier(.2,.7,.2,1), filter .5s ease}
-.card__cover::after{content:""; position:absolute; inset:0; background-image:var(--color);
-  background-size:cover; background-position:center; opacity:0; transition:opacity 1.1s ease}
-.card:hover .card__cover::after{opacity:1}
+  transition:transform .55s cubic-bezier(.2,.7,.2,1), filter .5s ease}
+/* lazy-load через теги картинок + blur-up (LQIP-lite): изображение проявляется из блюра при загрузке */
+.card__img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block}
+.card__img--bw{opacity:0; filter:blur(14px); transform:scale(1.04);
+  transition:opacity .7s ease, filter .7s ease, transform .7s ease}
+.card__img--bw.loaded{opacity:1; filter:blur(0); transform:none}
+.card__img--color{opacity:0; transition:opacity 1.1s ease}
+.card:hover .card__img--color{opacity:1}
+/* карточки без цветного слоя (созданные в лаборатории) — мягкий градиент сна */
+.card__cover--dream{background:
+  radial-gradient(60% 55% at 38% 32%, rgba(91,143,212,.34), transparent 70%),
+  radial-gradient(55% 60% at 68% 70%, rgba(220,180,200,.30), transparent 72%),
+  linear-gradient(150deg, #e7e6e2 0%, #dfe0dd 100%)}
 .card:hover .card__cover{transform:scale(1.035)}
 /* при наведении на одну карточку — остальные сильно затемняются и блюрятся */
 .arc-grid.has-card-hover .card:not(:hover){opacity:.28; filter:blur(7px) brightness(.94)}
 .arc-grid.has-card-hover .card:not(:hover) .card__cover{transform:scale(.95)}
-.arc-grid.has-card-hover .card:not(:hover) .card__cover::after{opacity:0}
+.arc-grid.has-card-hover .card:not(:hover) .card__img--color{opacity:0}
 .card__head{display:flex; gap:10px; margin:12px 0 8px; font-family:var(--mono); font-size:16px; letter-spacing:-.01em; color:var(--ink); text-transform:uppercase; transition:opacity .4s ease}
 .card__num{color:var(--faint)}
 .card__desc{font-family:var(--mono); font-size:16px; line-height:1.45; letter-spacing:-.02em; color:var(--muted); margin:0 0 12px; white-space:pre-line; min-height:calc(1.45em * 3); transition:opacity .4s ease}
@@ -390,6 +410,10 @@ body.hero-dissolve-active .hero-dissolve-line{
 .modal__nav:hover{color:var(--ink)}
 .modal__body{display:grid; grid-template-columns:1fr 1fr; gap:clamp(28px,4vw,60px); max-width:1180px; margin:0 auto}
 .modal__img{aspect-ratio:1/1; background:#e0e0dd; background-size:cover; background-position:center; border-radius:2px}
+.modal__img--dream,.modal__related-grid .r--dream{background:
+  radial-gradient(60% 55% at 38% 32%, rgba(91,143,212,.34), transparent 70%),
+  radial-gradient(55% 60% at 68% 70%, rgba(220,180,200,.30), transparent 72%),
+  linear-gradient(150deg, #e7e6e2 0%, #dfe0dd 100%)}
 .modal__related{margin-top:22px}
 .modal__related-label{font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:12px}
 .modal__related-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
@@ -440,7 +464,7 @@ body.hero-dissolve-active .hero-dissolve-line{
 .lab-dissolve.in{opacity:1; filter:blur(0); transform:none}
 @media (prefers-reduced-motion:reduce){ .lab-dissolve{opacity:1; filter:none; transform:none; transition:none} }
 .lab-field{margin-bottom:22px}
-.lab-textarea, .lab-text{width:100%; font-family:var(--mono); font-size:15px; letter-spacing:-.02em; color:var(--ink); padding:16px 18px; border:1px solid rgba(30,30,28,.32); background:transparent; border-radius:10px; outline:none; resize:none}
+.lab-textarea, .lab-text{width:100%; font-family:var(--mono); font-size:16px; letter-spacing:-.02em; color:var(--ink); padding:16px 18px; border:1px solid rgba(30,30,28,.32); background:transparent; border-radius:10px; outline:none; resize:none}
 .lab-textarea{min-height:104px; line-height:1.4}
 .lab-textarea::placeholder, .lab-text::placeholder{color:var(--faint)}
 .lab-textarea:focus, .lab-text:focus{border-color:var(--ink)}
@@ -503,6 +527,7 @@ body.hero-dissolve-active .hero-dissolve-line{
   <div class="loader__mark">Sleep Amnesia</div>
 </div>
 <audio id="bgm" src="Муззыка.mp3" loop preload="auto"></audio>
+<div class="page-veil" id="pageVeil" aria-hidden="true"></div>
 <div class="grain" aria-hidden="true"></div>
 <div class="trail" id="trail" aria-hidden="true"></div>
 
@@ -526,9 +551,9 @@ body.hero-dissolve-active .hero-dissolve-line{
   <div class="hero-stage">
     <div class="cursor-aura" id="aura" aria-hidden="true"></div>
     <div class="liquid" id="liquidLayer">
-      <video class="hero-video is-loading" id="bfly" src="ФОН.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
-      <video class="hero-video hero-video2" id="bfly2" src="ФОН 2.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
-      <video class="hero-video hero-video3" id="bfly3" src="ФОН 3.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
+      <video class="hero-video is-loading" id="bfly" src="ФОН.mp4" poster="ФОН.poster.webp" muted playsinline preload="auto" aria-hidden="true"></video>
+      <video class="hero-video hero-video2" id="bfly2" src="ФОН 2.mp4" poster="ФОН 2.poster.webp" muted playsinline preload="auto" aria-hidden="true"></video>
+      <video class="hero-video hero-video3" id="bfly3" src="ФОН 3.mp4" poster="ФОН 3.poster.webp" muted playsinline preload="auto" aria-hidden="true"></video>
       <div class="hero-content">
         <div class="state-1" id="state1">
           <h1 class="wordmark s1line hero-dissolve-line" id="wordmark" aria-label="Sleep Amnesia" data-reveal-letters>Sleep Amnesia</h1>
@@ -536,7 +561,7 @@ body.hero-dissolve-active .hero-dissolve-line{
             <span class="hero-sub-line hero-dissolve-line">Интерактивный архив, который помогает сохранить</span>
             <span class="hero-sub-line hero-dissolve-line">и восстановить исчезающие фрагменты сновидений.</span>
           </p>
-          <p class="hero-cta reveal reveal-d2 s1line hero-dissolve-line" id="hero-cta">Восстановить образ</p>
+          <p class="hero-cta reveal reveal-d2 s1line hero-dissolve-line" id="hero-cta">Листай вниз</p>
           <div class="hero-arrow hero-dissolve-line" id="hero-arrow" aria-hidden="true">↓</div>
         </div>
         <div class="state-2" id="state2">
@@ -618,7 +643,7 @@ body.hero-dissolve-active .hero-dissolve-line{
 <!-- ======== МОДАЛКА КАРТОЧКИ ======== -->
 <div class="modal" id="modal" aria-hidden="true">
   <div class="modal__overlay" data-close></div>
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Фрагмент сна" tabindex="-1">
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Фрагмент сна" tabindex="-1" data-lenis-prevent>
     <div class="modal__topbar">
       <button class="modal__nav" type="button" data-close>← назад в архив</button>
       <button class="modal__nav" type="button" id="modalNext">следующий фрагмент →</button>
@@ -643,11 +668,45 @@ body.hero-dissolve-active .hero-dissolve-line{
   </div>
 </div>
 
+<script src="lenis.min.js"></script>
 <script>
 (function(){
   var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var coarse = matchMedia('(pointer: coarse)').matches;
   if (coarse) document.body.classList.add('no-pointer');
+
+  /* ---------- Lenis smooth scroll (заменяет старый scroll-hijack) ----------
+     Плавный интерполированный скролл; hero-фазы считаются из позиции скролла
+     (setPhaseFromScroll в rAF). При reduced-motion — не инициализируем. */
+  var lenis = null;
+  if (!reduce && window.Lenis) {
+    lenis = new Lenis({
+      lerp: 0.1,
+      wheelMultiplier: 1,
+      smoothWheel: true,
+      touchMultiplier: 1.4
+    });
+    window.__lenis = lenis;
+  }
+  /* единая точка навигации: Lenis.scrollTo, иначе нативный fallback */
+  function goTo(target, opts){
+    opts = opts || {};
+    if (lenis) { lenis.scrollTo(target, { offset: opts.offset || 0, immediate: !!reduce }); return; }
+    if (typeof target === 'number') { window.scrollTo({ top: target, behavior: reduce ? 'auto' : 'smooth' }); return; }
+    if (target && target.scrollIntoView) { target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: opts.block || 'start' }); }
+  }
+  /* плавный переход на другую страницу: вуаль растворяет текущую, затем навигация */
+  function navigateTo(url){
+    if (reduce) { location.href = url; return; }
+    var veil = document.getElementById('pageVeil');
+    if (!veil) { location.href = url; return; }
+    if (window.__lenis) window.__lenis.stop();
+    veil.classList.add('show');
+    var went = false;
+    var go = function(){ if (went) return; went = true; location.href = url; };
+    veil.addEventListener('transitionend', go, { once:true });
+    setTimeout(go, 520);
+  }
 
   /* ---------- перезагрузка всегда с начала ---------- */
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -837,12 +896,6 @@ body.hero-dissolve-active .hero-dissolve-line{
   }
 
   var lastScrollY = -1;
-  var heroActive = true;
-  var heroAnchorY = 0;
-  var heroLockY = 0;
-  var heroBottomY = 0;
-  var suppressReengageUntil = 0;
-  var heroReleasedAt = 'top';
   var heroPhase = 'video1';
   var phaseProgress = 0;
 
@@ -850,19 +903,6 @@ body.hero-dissolve-active .hero-dissolve-line{
   var titleDissolveProgress = 0;
   var poemPauseGestures = 0;
 
-  var wheelGestureOpen = false;
-  var wheelGestureTimer = 0;
-  var scrollbarDriven = false;
-  var touchY = null;
-  var finalReleaseTimer = 0;
-
-  var WHEEL_GESTURE_GAP_MS = 80;
-  var VIDEO1_SCROLL_DISTANCE = 1900;
-  var TITLE_DISSOLVE_DISTANCE = 720;
-  var VIDEO2_SCROLL_DISTANCE = 1650;
-  var VIDEO3_SCROLL_DISTANCE = 1700;
-  var FINAL_TEXT_SCROLL_DISTANCE = 1450;
-  var FINAL_HOLD_MS = 550;
   var VIDEO_END_EPSILON = 0.04;
 
   function clamp01(value){
@@ -880,13 +920,6 @@ body.hero-dissolve-active .hero-dissolve-line{
 
   function getHeroTop(){
     return heroScroll.getBoundingClientRect().top + window.scrollY;
-  }
-
-  function keepHeroViewportFixed(){
-    if (!heroActive) return;
-    if (Math.abs(window.scrollY - heroLockY) > 1) {
-      window.scrollTo(0, heroLockY);
-    }
   }
 
   function safeVideoProgress(videoElement, progress){
@@ -917,214 +950,8 @@ body.hero-dissolve-active .hero-dissolve-line{
     videoElement.load();
   });
 
-  function isNewWheelGesture(){
-    var isNew = !wheelGestureOpen;
-    wheelGestureOpen = true;
-
-    if (wheelGestureTimer) clearTimeout(wheelGestureTimer);
-    wheelGestureTimer = setTimeout(function(){
-      wheelGestureOpen = false;
-      wheelGestureTimer = 0;
-    }, WHEEL_GESTURE_GAP_MS);
-
-    return isNew;
-  }
-
-  function normalizeWheelDelta(event){
-    var multiplier = event.deltaMode === 1
-      ? 16
-      : (event.deltaMode === 2 ? innerHeight : 1);
-    return Math.max(-120, Math.min(120, event.deltaY * multiplier));
-  }
-
-  function setPhase(nextPhase, nextProgress){
-    heroPhase = nextPhase;
-    phaseProgress = clamp01(nextProgress || 0);
-    renderHeroState();
-  }
-
-  function scheduleHeroRelease(){
-    if (finalReleaseTimer) return;
-    finalReleaseTimer = setTimeout(function(){
-      finalReleaseTimer = 0;
-      releaseHeroSequence();
-    }, FINAL_HOLD_MS);
-  }
-
-  function releaseHeroSequence(){
-    if (!heroActive) return;
-    heroActive = false;
-    scrollbarDriven = false;
-    heroReleasedAt = 'bottom';
-    var heroTop = getHeroTop();
-    var total = Math.max(0, heroScroll.offsetHeight - innerHeight);
-    heroBottomY = Math.max(heroTop, heroTop + total - 2);
-    window.scrollTo(0, heroBottomY);
-    lastScrollY = heroBottomY;
-  }
-  function releaseHeroReverse(){
-    if (!heroActive) return;
-    heroActive = false;
-    scrollbarDriven = false;
-    heroReleasedAt = 'top';
-    heroAnchorY = getHeroTop();
-    window.scrollTo(0, heroAnchorY);
-    lastScrollY = heroAnchorY;
-  }
-  function engageForward(){
-    if (finalReleaseTimer) { clearTimeout(finalReleaseTimer); finalReleaseTimer = 0; }
-    heroActive = true;
-    scrollbarDriven = false;
-    heroPhase = 'video1';
-    phaseProgress = 0;
-    titleDissolveStarted = false;
-    titleDissolveProgress = 0;
-    poemPauseGestures = 0;
-    wheelGestureOpen = false;
-    heroAnchorY = getHeroTop();
-    heroLockY = heroAnchorY;
-    window.scrollTo(0, heroLockY);
-    lastScrollY = heroLockY;
-    renderHeroState();
-  }
-  function engageReverse(){
-    if (finalReleaseTimer) { clearTimeout(finalReleaseTimer); finalReleaseTimer = 0; }
-    heroActive = true;
-    scrollbarDriven = false;
-    heroPhase = 'finalText';
-    phaseProgress = 1;
-    titleDissolveStarted = true;
-    titleDissolveProgress = 1;
-    poemPauseGestures = 1;
-    wheelGestureOpen = false;
-    var heroTop = getHeroTop();
-    heroAnchorY = heroTop;
-    var total = Math.max(0, heroScroll.offsetHeight - innerHeight);
-    heroBottomY = Math.max(heroTop, heroTop + total - 2);
-    heroLockY = heroBottomY;
-    window.scrollTo(0, heroLockY);
-    lastScrollY = heroLockY;
-    renderHeroState();
-  }
-
-  function resetHeroSequence(){
-    engageForward();
-  }
-
-  function skipHeroSequence(){
-    if (finalReleaseTimer) {
-      clearTimeout(finalReleaseTimer);
-      finalReleaseTimer = 0;
-    }
-    heroActive = false;
-    scrollbarDriven = false;
-    heroReleasedAt = 'bottom';
-    suppressReengageUntil = Date.now() + 1200;
-  }
-
-  function movePhaseBackward(){
-    if (heroPhase === 'video2' && phaseProgress <= 0) {
-      setPhase('video1', 0.995);
-      return true;
-    }
-    if (heroPhase === 'poemPause') {
-      poemPauseGestures = 0;
-      setPhase('video2', 0.995);
-      return true;
-    }
-    if (heroPhase === 'video3' && phaseProgress <= 0) {
-      poemPauseGestures = 1;
-      setPhase('poemPause', 1);
-      return true;
-    }
-    if (heroPhase === 'finalText' && phaseProgress <= 0) {
-      setPhase('video3', 0.995);
-      return true;
-    }
-    return false;
-  }
-
-  function advanceHero(delta, gestureStart){
-    if (!heroActive || !delta) return;
-
-    var forward = delta > 0;
-
-    if (heroPhase === 'video1') {
-      phaseProgress = clamp01(phaseProgress + delta / VIDEO1_SCROLL_DISTANCE);
-
-      if (titleDissolveStarted) {
-        titleDissolveProgress = clamp01(
-          titleDissolveProgress + delta / TITLE_DISSOLVE_DISTANCE
-        );
-      }
-
-      if (forward && phaseProgress >= 1) {
-        titleDissolveStarted = true;
-        titleDissolveProgress = 1;
-        setPhase('video2', 0);
-        return;
-      }
-      if (!forward && phaseProgress <= 0 && titleDissolveProgress <= 0) {
-        releaseHeroReverse();
-        return;
-      }
-    }
-    else if (heroPhase === 'video2') {
-      phaseProgress = clamp01(phaseProgress + delta / VIDEO2_SCROLL_DISTANCE);
-
-      if (!forward && phaseProgress <= 0 && movePhaseBackward()) return;
-
-      if (forward && phaseProgress >= 1) {
-        poemPauseGestures = 0;
-        setPhase('poemPause', 1);
-        return;
-      }
-    }
-    else if (heroPhase === 'poemPause') {
-      if (!forward && gestureStart) {
-        movePhaseBackward();
-        return;
-      }
-
-      if (forward && gestureStart) {
-        if (poemPauseGestures === 0) {
-          /* Один полный жест колёсиком ничего не меняет: текст стоит на месте. */
-          poemPauseGestures = 1;
-        } else {
-          /* Следующий жест запускает ФОН 3 и одновременно скрывает второй текст. */
-          setPhase('video3', 0);
-          phaseProgress = clamp01(Math.abs(delta) / VIDEO3_SCROLL_DISTANCE);
-        }
-      }
-    }
-    else if (heroPhase === 'video3') {
-      phaseProgress = clamp01(phaseProgress + delta / VIDEO3_SCROLL_DISTANCE);
-
-      if (!forward && phaseProgress <= 0 && movePhaseBackward()) return;
-
-      if (forward && phaseProgress >= 1) {
-        setPhase('finalText', 0);
-        return;
-      }
-    }
-    else if (heroPhase === 'finalText') {
-      if (!forward && finalReleaseTimer) {
-        clearTimeout(finalReleaseTimer);
-        finalReleaseTimer = 0;
-      }
-
-      phaseProgress = clamp01(phaseProgress + delta / FINAL_TEXT_SCROLL_DISTANCE);
-
-      if (!forward && phaseProgress <= 0 && movePhaseBackward()) return;
-
-      if (forward && phaseProgress >= 1) {
-        phaseProgress = 1;
-        scheduleHeroRelease();
-      }
-    }
-
-    renderHeroState();
-  }
+  /* [scroll-hijack машинерия удалена — фазы hero теперь считаются из позиции
+     скролла в setPhaseFromScroll(), ввод обрабатывает Lenis] */
 
   function updateTitleDissolve(){
     var progress = titleDissolveStarted ? titleDissolveProgress : 0;
@@ -1208,88 +1035,10 @@ body.hero-dissolve-active .hero-dissolve-line{
     updateFinalText();
   }
 
-  addEventListener('wheel', function(event){
-    if (reduce) return; /* reduced-motion: не hijack-им скролл */
-    /* scroll-driven режим (скроллбар): позволяем естественный скролл, не hijack */
-    if (heroActive && scrollbarDriven) return;
-    if (!heroActive) {
-      if (Date.now() < suppressReengageUntil) return;
-      var ht = getHeroTop();
-      var tot = Math.max(0, heroScroll.offsetHeight - innerHeight);
-      var hb = Math.max(ht, ht + tot - 2);
-      var ys = window.scrollY;
-      if (event.deltaY < 0 && heroReleasedAt === 'bottom' && ys <= hb && ys >= ht) {
-        engageReverse();
-        event.preventDefault();
-        return;
-      }
-      if (event.deltaY > 0 && heroReleasedAt === 'top' && ys >= ht && ys <= hb) {
-        engageForward();
-        event.preventDefault();
-        return;
-      }
-      return;
-    }
-    event.preventDefault();
-
-    var delta = normalizeWheelDelta(event);
-    var gestureStart = isNewWheelGesture();
-    advanceHero(delta, gestureStart);
-    keepHeroViewportFixed();
-  }, { passive:false });
-
-  addEventListener('touchstart', function(event){
-    if (!heroActive || !event.touches || !event.touches.length) return;
-    touchY = event.touches[0].clientY;
-  }, { passive:true });
-
-  addEventListener('touchmove', function(event){
-    if (reduce) return;
-    if (!heroActive || !event.touches || !event.touches.length) return;
-    if (scrollbarDriven) return; /* scroll-driven: позволяем естественный скролл */
-    event.preventDefault();
-
-    var currentY = event.touches[0].clientY;
-    if (touchY === null) touchY = currentY;
-    var delta = Math.max(-80, Math.min(80, touchY - currentY));
-    touchY = currentY;
-
-    advanceHero(delta, false);
-    keepHeroViewportFixed();
-  }, { passive:false });
-
-  addEventListener('touchend', function(){
-    if (!heroActive) return;
-    touchY = null;
-    wheelGestureOpen = false;
-  }, { passive:true });
-
-  addEventListener('keydown', function(event){
-    if (reduce) return;
-    if (!heroActive) return;
-    if (scrollbarDriven) return; /* scroll-driven: позволяем естественный скролл */
-    var active = document.activeElement;
-    if (active && (active.matches('input, textarea, select') || active.isContentEditable)) return;
-
-    var downKeys = ['ArrowDown','PageDown','End',' '];
-    var upKeys = ['ArrowUp','PageUp','Home'];
-
-    if (downKeys.indexOf(event.key) !== -1) {
-      event.preventDefault();
-      advanceHero(120, true);
-      keepHeroViewportFixed();
-    } else if (upKeys.indexOf(event.key) !== -1) {
-      event.preventDefault();
-      advanceHero(-120, true);
-      keepHeroViewportFixed();
-    }
-  });
+  /* Ввод скролла (wheel/touch/keyboard) больше не перехватывается — им управляет
+     Lenis, а hero-фазы вычисляются из позиции скролла в rAF (setPhaseFromScroll). */
 
   addEventListener('resize', function(){
-    if (heroActive) {
-      heroAnchorY = getHeroTop();
-      keepHeroViewportFixed();
-    }
     renderHeroState();
   });
 
@@ -1409,10 +1158,10 @@ body.hero-dissolve-active .hero-dissolve-line{
     if (reduce) arcHead.classList.add('in');
   }
 
-  heroAnchorY = getHeroTop();
-  heroLockY = heroAnchorY;
-  window.scrollTo(0, heroAnchorY);
-  lastScrollY = heroAnchorY;
+  window.scrollTo(0, 0);
+  lastScrollY = 0;
+  /* при reduced-motion фазы из скролла не считаются — показываем статичный первый кадр */
+  if (reduce) { heroPhase = 'video1'; phaseProgress = 0; }
   renderHeroState();
 
   /* Маппинг общего прогресса скролла hero (0..1) на фазы + phaseProgress.
@@ -1446,44 +1195,23 @@ body.hero-dissolve-active .hero-dissolve-line{
     renderHeroState();
   }
 
-  function tick(){
-    /* Скроллбар: если hero активен и scrollY ушёл от lock-позиции — это скроллбар
-       (wheel/тач/клавиши preventDefault'ятся и не двигают scrollY). Переходим в
-       scroll-driven режим: не сбрасываем scrollY, а вычисляем фазы из позиции скролла.
-       Ползунок не дёргается, анимация плавная. */
-    if (heroActive && !scrollbarDriven) {
-      if (Math.abs(window.scrollY - heroLockY) > 5) scrollbarDriven = true;
-    }
-    if (heroActive && scrollbarDriven) {
+  function tick(time){
+    if (lenis) lenis.raf(time);
+
+    /* hero-фазы напрямую из позиции скролла — sticky-сцена «пинится» через CSS,
+       никакого перехвата ввода. При reduced-motion фазы статичны. */
+    if (!reduce) {
       var heroTop = getHeroTop();
       var total = Math.max(1, heroScroll.offsetHeight - innerHeight);
       var p = clamp01((window.scrollY - heroTop) / total);
-      setPhaseFromScroll(p);
-      if (p >= 0.999) { releaseHeroSequence(); scrollbarDriven = false; }
-      else if (p <= 0.001 && window.scrollY <= heroTop + 1) { releaseHeroReverse(); scrollbarDriven = false; }
-    } else {
-      keepHeroViewportFixed();
-    }
-    var y = window.scrollY;
-    if (y !== lastScrollY) {
-      var scrollingUp = y < lastScrollY;
-      lastScrollY = y;
-      var scrolled = (y + innerHeight * 0.5) > archiveTop;
-      document.body.classList.toggle('scrolled', scrolled);
-      if (!heroActive && Date.now() > suppressReengageUntil) {
-        var ht = getHeroTop();
-        var tot = Math.max(0, heroScroll.offsetHeight - innerHeight);
-        var hb = Math.max(ht, ht + tot - 2);
-        if (scrollingUp && heroReleasedAt === 'bottom' && y <= hb && y >= ht) {
-          engageReverse();
-        } else if (!scrollingUp && heroReleasedAt === 'top' && y >= ht && y <= hb) {
-          engageForward();
-        }
-      }
+      setPhaseFromScroll(p); /* уже вызывает renderHeroState */
     }
 
-    /* рендер только если не scroll-driven (там setPhaseFromScroll уже рендерит) */
-    if (!(heroActive && scrollbarDriven)) renderHeroState();
+    var y = window.scrollY;
+    if (y !== lastScrollY) {
+      lastScrollY = y;
+      document.body.classList.toggle('scrolled', (y + innerHeight * 0.5) > archiveTop);
+    }
 
     mx += (tmx - mx) * 0.12;
     my += (tmy - my) * 0.12;
@@ -1514,20 +1242,10 @@ body.hero-dissolve-active .hero-dissolve-line{
     a.addEventListener('click', function(e){
       e.preventDefault();
       var nav = a.dataset.nav;
-      if (nav === 'top') { resetHeroSequence(); }
-      else if (nav === 'archive') {
-        skipHeroSequence();
-        var el = document.getElementById('archive');
-        if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-      }
-      else if (nav === 'worklog') {
-        location.href = 'worklog.html';
-      }
-      else if (nav === 'lab') {
-        skipHeroSequence();
-        var labEl = document.getElementById('lab');
-        if (labEl) labEl.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-      }
+      if (nav === 'top') { goTo(0); }
+      else if (nav === 'archive') { goTo(document.getElementById('archive')); }
+      else if (nav === 'lab') { goTo(document.getElementById('lab')); }
+      else if (nav === 'worklog') { navigateTo('worklog.html'); }
     });
   });
 
@@ -1546,47 +1264,64 @@ body.hero-dissolve-active .hero-dissolve-line{
     {n:'11', t:'Незнакомец вдали',  d:'Одинокая фигура стоит\nна склоне. Расстояние\nне меняется совсем', tag:'люди'},
     {n:'12', t:'Далёкий город',     d:'Город проступает в тумане.\nОгни дрожат на горизонте,\nдо них не добраться', tag:'место'}
   ];
+  var addArchiveCard = null; /* назначается ниже, вызывается из лаборатории */
   var grid = document.getElementById('arcGrid');
   if (grid){
-    CARDS.forEach(function(c, i){
+    function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+    /* обложка: у архивных карточек — ленивые картинки (ч/б + цвет), у собранных
+       в лаборатории (dream) — мягкий градиент сна */
+    function coverHTML(c, i){
+      if (c.dream) return '<div class="card__cover card__cover--dream"></div>';
       var idx = i + 1;
+      return '<div class="card__cover">'
+        + '<img class="card__img card__img--bw" src="карточки/' + idx + '.webp" alt="' + escAttr(c.t) + '" loading="lazy" decoding="async">'
+        + '<img class="card__img card__img--color" src="карточки цвет/' + idx + '.webp" alt="" aria-hidden="true" loading="lazy" decoding="async">'
+        + '</div>';
+    }
+    function buildCardEl(c, i){
       var el = document.createElement('article');
       el.className = 'card';
       el.setAttribute('data-tag', c.tag);
-      el.setAttribute('data-text', (c.t + ' ' + c.d).toLowerCase());
-      el.innerHTML =
-        '<div class="card__cover" style=\'--bw:url("карточки/' + idx + '.webp"); --color:url("карточки цвет/' + idx + '.webp")\'></div>' +
-        '<div class="card__head"><span class="card__num">' + c.n + '</span><span class="card__title">' + c.t + '</span></div>' +
-        '<p class="card__desc">' + c.d + '</p>' +
-        '<span class="card__tag">' + c.tag + '</span>';
-      grid.appendChild(el);
-    });
+      el.setAttribute('data-index', i);
+      el.setAttribute('data-text', (c.t + ' ' + (c.d || '')).toLowerCase());
+      el.setAttribute('role', 'button');
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('aria-label', c.n + ' ' + c.t);
+      el.style.cursor = 'pointer';
+      el.innerHTML = coverHTML(c, i)
+        + '<div class="card__head"><span class="card__num">' + c.n + '</span><span class="card__title">' + c.t + '</span></div>'
+        + '<p class="card__desc">' + (c.d || '') + '</p>'
+        + '<span class="card__tag">' + c.tag + '</span>';
+      var bw = el.querySelector('.card__img--bw');
+      if (bw) {
+        var mark = function(){ bw.classList.add('loaded'); };
+        if (bw.complete && bw.naturalWidth) mark();
+        else { bw.addEventListener('load', mark, { once:true }); bw.addEventListener('error', mark, { once:true }); }
+      }
+      return el;
+    }
 
-    var cards = grid.querySelectorAll('.card');
-
-    /* Блюр соседних карточек включается только при наведении на конкретную карточку. */
-    cards.forEach(function(card){
-      card.addEventListener('pointerenter', function(){
-        grid.classList.add('has-card-hover');
-      });
-      card.addEventListener('pointerleave', function(){
-        grid.classList.remove('has-card-hover');
-      });
-    });
-    grid.addEventListener('pointerleave', function(){
-      grid.classList.remove('has-card-hover');
-    });
-
-    // reveal-стаггер карточек при скролле
+    // reveal-стаггер карточек при скролле (работает и для добавленных позже)
     var cio = new IntersectionObserver(function(es){
       es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); cio.unobserve(e.target); } });
     }, {threshold:0.12, rootMargin:'0px 0px -6% 0px'});
-    cards.forEach(function(card,i){ card.style.transitionDelay = ((i % 6) * 0.09) + 's'; cio.observe(card); });
-    if (reduce) cards.forEach(function(c){ c.classList.add('in'); });
-    setTimeout(function(){ cards.forEach(function(c){ c.classList.add('in'); }); }, 4200); // failsafe
+    function observeCard(card, i){
+      card.style.transitionDelay = ((i % 6) * 0.09) + 's';
+      cio.observe(card);
+      if (reduce) card.classList.add('in');
+    }
+
+    CARDS.forEach(function(c, i){ var el = buildCardEl(c, i); grid.appendChild(el); observeCard(el, i); });
+    setTimeout(function(){ grid.querySelectorAll('.card').forEach(function(c){ c.classList.add('in'); }); }, 4200); // failsafe
+
+    /* Блюр соседних карточек — делегированием, чтобы охватывать динамические карточки. */
+    grid.addEventListener('pointerover', function(e){ if(e.target.closest && e.target.closest('.card')) grid.classList.add('has-card-hover'); });
+    grid.addEventListener('pointerout', function(e){ var to=e.relatedTarget; if(!to || !to.closest || !to.closest('.card')) grid.classList.remove('has-card-hover'); });
+    grid.addEventListener('pointerleave', function(){ grid.classList.remove('has-card-hover'); });
+
     var curFilter = 'все', curQuery = '';
     function applyFilter(){
-      cards.forEach(function(card){
+      grid.querySelectorAll('.card').forEach(function(card){
         var okTag = (curFilter === 'все') || (card.getAttribute('data-tag') === curFilter);
         var okText = !curQuery || card.getAttribute('data-text').indexOf(curQuery) > -1;
         card.classList.toggle('hidden', !(okTag && okText));
@@ -1662,17 +1397,23 @@ body.hero-dissolve-active .hero-dissolve-line{
         mNext=document.getElementById('modalNext');
     var curCard=0;
     function fillModal(i){
-      curCard=i; var c=CARDS[i], idx=i+1, det=DETAIL[idx]||{};
-      mImg.style.backgroundImage='url("карточки/'+idx+'.webp")';
+      curCard=i; var c=CARDS[i];
+      var det = c.dream ? c : (DETAIL[i+1] || {});
+      if (c.dream) { mImg.style.backgroundImage='none'; mImg.classList.add('modal__img--dream'); }
+      else { mImg.classList.remove('modal__img--dream'); mImg.style.backgroundImage='url("карточки/'+(i+1)+'.webp")'; }
       mEye.textContent=c.n+' / фрагмент';
       mTitle.textContent=c.t;
-      mDesc.textContent=det.desc||c.d;
+      mDesc.textContent=det.desc||c.d||'';
       mMoods.innerHTML=(det.moods||[]).map(function(m){return '<span class="modal__mood">'+m+'</span>';}).join('');
       mNote.textContent=det.note||'';
       var meta=det.meta||{'Категория':(CAT[c.tag]||c.tag),'Тип сна':'Фрагмент','Сохранность':'—','Место':'Неизвестно'};
       mMeta.innerHTML=Object.keys(meta).map(function(k){return '<dt>'+k+'</dt><dd>'+meta[k]+'</dd>';}).join('');
       var rel=[]; for(var k=1;k<=3;k++){ rel.push((i+k)%CARDS.length); }
-      mRelated.innerHTML=rel.map(function(ri){return '<div class="r" data-ri="'+ri+'" style=\'background-image:url("карточки/'+(ri+1)+'.webp")\'></div>';}).join('');
+      mRelated.innerHTML=rel.map(function(ri){
+        var rc=CARDS[ri];
+        if(rc && rc.dream) return '<div class="r r--dream" data-ri="'+ri+'"></div>';
+        return '<div class="r" data-ri="'+ri+'" style=\'background-image:url("карточки/'+(ri+1)+'.webp")\'></div>';
+      }).join('');
       modal.scrollTop=0; var p=modal.querySelector('.modal__panel'); if(p) p.scrollTop=0;
     }
     var lastFocused=null;
@@ -1680,11 +1421,13 @@ body.hero-dissolve-active .hero-dissolve-line{
     function openModal(i){
       lastFocused=document.activeElement;
       fillModal(i); modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden';
+      if (window.__lenis) window.__lenis.stop();
       var f=focusables(modal); if(f.length) f[0].focus();
     }
     function closeModal(){
       if (!modal.classList.contains('open')) return;
       modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow='';
+      if (window.__lenis) window.__lenis.start();
       if(lastFocused && lastFocused.focus) lastFocused.focus();
     }
     modal.addEventListener('keydown', function(e){
@@ -1694,14 +1437,34 @@ body.hero-dissolve-active .hero-dissolve-line{
       if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
       else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
     });
-    cards.forEach(function(card,i){
-      card.style.cursor='pointer';
-      card.setAttribute('role','button');
-      card.setAttribute('tabindex','0');
-      card.setAttribute('aria-label', CARDS[i].n + ' ' + CARDS[i].t);
-      card.addEventListener('click', function(){ openModal(i); });
-      card.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openModal(i); } });
+    // клики/клавиатура по карточкам — делегированием (охватывает добавленные позже)
+    grid.addEventListener('click', function(e){
+      var card = e.target.closest('.card'); if(!card) return;
+      openModal(+card.getAttribute('data-index'));
     });
+    grid.addEventListener('keydown', function(e){
+      if(e.key!=='Enter' && e.key!==' ') return;
+      var card = e.target.closest('.card'); if(!card) return;
+      e.preventDefault(); openModal(+card.getAttribute('data-index'));
+    });
+
+    // добавление собранной в лаборатории карточки в архив (newest first)
+    addArchiveCard = function(data){
+      var i = CARDS.length;
+      if (!data.n) data.n = (i + 1 < 10 ? '0' : '') + (i + 1);
+      CARDS.push(data);
+      var el = buildCardEl(data, i);
+      grid.insertBefore(el, grid.firstChild);
+      observeCard(el, 0);
+      requestAnimationFrame(function(){ el.classList.add('in'); });
+      applyFilter();
+      return i;
+    };
+    // восстановить ранее сохранённые в лаборатории фрагменты
+    try {
+      var savedFrags = JSON.parse(localStorage.getItem('sa-fragments') || '[]');
+      if (Array.isArray(savedFrags)) savedFrags.forEach(function(d){ if (d && d.t) addArchiveCard(d); });
+    } catch (e) {}
     modal.addEventListener('click', function(e){
       if(e.target.closest('[data-close]')){ closeModal(); return; }
       var r=e.target.closest('.r'); if(r) openModal(+r.getAttribute('data-ri'));
@@ -1796,6 +1559,52 @@ body.hero-dissolve-active .hero-dissolve-line{
       var bonus = Math.round((labData.intensity || 0) / 4);
       return Math.min(100, Math.max(20, base + bonus));
     }
+    /* --- сохранение собранного фрагмента в архив --- */
+    var labSaved = false;
+    var TAG_LABEL = {'место':'Место','люди':'Люди','объект':'Объект','природа':'Природа'};
+    function labTag(){
+      var comp = (labData.companion || '').toLowerCase();
+      var place = (labData.place || '').toLowerCase();
+      if (/человек|силуэт|люд|незнаком|фигур|голос/.test(comp)) return 'люди';
+      if (/животн|птиц|лес|вод|озер|море|цвет|природ|дерев|небо/.test(comp + ' ' + place)) return 'природа';
+      if (/свет|объект|лодка|качел|маяк|луна/.test(comp)) return 'объект';
+      if (labData.place) return 'место';
+      return 'объект';
+    }
+    function persistFragment(data){
+      try {
+        var arr = JSON.parse(localStorage.getItem('sa-fragments') || '[]');
+        if (!Array.isArray(arr)) arr = [];
+        arr.push(data);
+        localStorage.setItem('sa-fragments', JSON.stringify(arr));
+      } catch (e) {}
+    }
+    function saveFragment(){
+      if (labSaved || typeof addArchiveCard !== 'function') return;
+      var pct = labSavePercent();
+      var title = (labData.title || '').trim() || 'Безымянный фрагмент';
+      var tag = labTag();
+      var desc = (labData.fragment || '').trim() ||
+        (labData.place ? ('Место, которое осталось: ' + labData.place) : 'Фрагмент, восстановленный в лаборатории');
+      var cardDesc = desc.split('\n').slice(0, 3).join('\n');
+      var data = {
+        t: title, d: cardDesc, tag: tag, dream: true,
+        desc: desc,
+        moods: labData.mood ? [labData.mood] : [],
+        note: labData.sound ? ('След в звуке: ' + labData.sound) : '',
+        meta: {
+          'Категория': TAG_LABEL[tag] || tag,
+          'Настроение': labData.mood || '—',
+          'Сохранность': pct + '%',
+          'Тип сна': 'Фрагмент',
+          'Место': labData.place || 'Неизвестно',
+          'Источник': 'Лаборатория'
+        }
+      };
+      addArchiveCard(data);
+      persistFragment(data);
+      labSaved = true;
+    }
     function render(i, instant){
       cur=i; var st=STEPS[i];
       // текст слева — мгновенно, без анимации; изображение справа — растворение через setVisual
@@ -1836,33 +1645,35 @@ body.hero-dissolve-active .hero-dissolve-line{
         }
       }
     }
-    function openLab(){ render(0,true); var labEl=document.getElementById('lab'); if(labEl) labEl.scrollIntoView({behavior:reduce?'auto':'smooth', block:'start'}); }
+    function openLab(){ render(0,true); goTo(document.getElementById('lab')); }
     lab.addEventListener('click', function(e){
       var chip=e.target.closest('.lab-chip');
       if(chip){ chip.parentElement.querySelectorAll('.lab-chip').forEach(function(x){x.classList.remove('active');}); chip.classList.add('active'); return; }
       var navEl=e.target.closest('[data-labnav]');
       if(navEl){
         var n=navEl.getAttribute('data-labnav');
-        if(n==='home'){ scrollTo({top:0,behavior:reduce?'auto':'smooth'}); }
-        else if(n==='archive'){ var el=document.getElementById('archive'); if(el) el.scrollIntoView({behavior:reduce?'auto':'smooth'}); }
-        else if(n==='worklog'){ location.href='worklog.html'; }
+        if(n==='home'){ goTo(0); }
+        else if(n==='archive'){ goTo(document.getElementById('archive')); }
+        else if(n==='worklog'){ navigateTo('worklog.html'); }
         else if(n==='lab'){ render(0); }
         return;
       }
       if(e.target.closest('[data-labrestart]')){
         labData = { fragment:'', place:'', companion:'', mood:'', intensity:52, sound:'', title:'', personal:false, anonymous:false };
+        labSaved = false;
         render(0); return;
       }
       if(e.target.closest('[data-labback]')){ if(cur>0) render(cur-1); return; }
       if(e.target.closest('[data-labnext]')){
         collectLabStep();
+        if(cur === 6) saveFragment(); /* «сохранить фрагмент» → добавить карточку в архив */
         var alignAfterIntro = cur === 0;
         if(cur<STEPS.length-1) render(cur+1);
         if(alignAfterIntro){
           requestAnimationFrame(function(){
             requestAnimationFrame(function(){
               var stage = document.querySelector('.lab-stage');
-              if(stage) stage.scrollIntoView({behavior:reduce?'auto':'smooth', block:'end'});
+              if(stage) goTo(stage);
             });
           });
         }
